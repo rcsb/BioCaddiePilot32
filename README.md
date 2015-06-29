@@ -18,50 +18,50 @@ PART 1: DATA RETRIEVAL: We can retrieve data in two ways by using the flag (0:ci
 
 1.1: Starting from Pdb primary citations, we can first retrieve all citation+reference cascades then we can retrieve the summary of all retrieved pubmed ids. Order is important.
 
-$ java org.biocaddie.citationanalysis.retrievedata.RetrieveCitationFromEutils 0 /Users/ali/Documents/BioCaddie/data/citation/june_27/PdbId_PubmedId_Jun27.csv 
+$ java org.biocaddie.citationanalysis.retrievedata.RetrieveCitationFromEutils 0 PdbId_PubmedId_Jun27.csv 
 
-$ java org.biocaddie.citationanalysis.retrievedata.RetrieveSummaryFromEutils 0 /Users/ali/Documents/BioCaddie/data/citation/june_27/all_pubmed_id.txt 
+$ java org.biocaddie.citationanalysis.retrievedata.RetrieveSummaryFromEutils 0 all_pubmed_id.txt 
 
 1.2: We can retrieve the whole pubmed, by first retrieving the summary of all valid pubmed ids between 1 and n(26M), then retrieving the citations for all retrieved pubmed ids. Order is important.
 
-$ java org.biocaddie.citationanalysis.retrievedata.RetrieveSummaryFromEutils 1 26000000 /Users/ali/Documents/BioCaddie/data/citation/june_27/whole_pubmed/ 
+$ java org.biocaddie.citationanalysis.retrievedata.RetrieveSummaryFromEutils 1 26000000 whole_pubmed/ 
 
-$ java org.biocaddie.citationanalysis.retrievedata.RetrieveCitationFromEutils 1 /Users/ali/Documents/BioCaddie/data/citation/june_27/whole_pubmed/all_pubmed_id.txt 
+$ java org.biocaddie.citationanalysis.retrievedata.RetrieveCitationFromEutils 1 whole_pubmed/all_pubmed_id.txt 
 
 
 PART 2: NETWORK CONSTRUCTION: We construct the network using the two retrieved XML files: all_citations.xml and all_citations_summary.xml.
 
 2.1: These XML files are too large (10GB and 25GB), in order to prevent memory problems, first we parse these XML files and write our needed fields into smaller (1.5GB and 2GB) txt files: all_citations.txt and all_citations_summary.txt. Order is not important.
 
-$ java org.biocaddie.citationanalysis.retrievedata.CitationSummaryResultXmlParser /Users/ali/Documents/BioCaddie/data/citation/june_27/all_citations_summary.xml 
+$ java org.biocaddie.citationanalysis.retrievedata.CitationSummaryResultXmlParser all_citations_summary.xml 
 
-$ java org.biocaddie.citationanalysis.retrievedata.CitationAndRefLinkResultXmlParser /Users/ali/Documents/BioCaddie/data/citation/june_27/all_citations.xml 
+$ java org.biocaddie.citationanalysis.retrievedata.CitationAndRefLinkResultXmlParser all_citations.xml 
 
 2.2: We construct the paper citation networks and journal citation networks using these two txt files: all_citations.txt and all_citations_summary.txt
 
 -First we can construct the initial paper and journal networks, which includes all papers we retrieved.
 
-$ java -Xmx28000m org.biocaddie.citationanalysis.network.ConstructNetwork /Users/ali/Documents/BioCaddie/data/citation/june_27/all_citations.txt /Users/ali/Documents/BioCaddie/data/citation/june_27/all_citations_summary.txt 
+$ java -Xmx28000m org.biocaddie.citationanalysis.network.ConstructNetwork all_citations.txt all_citations_summary.txt 
 
 2.3: For temporal analysis, we can construct a paper&journal citation network using only the papers published between two years, for example 2012-2014. First we choose papers published between 2012 and 2014, and include the citations only between these papers.
 
-$ java org.biocaddie.citationanalysis.network.ConstructNetwork /Users/ali/Documents/BioCaddie/data/citation/june_27/all_citations.txt /Users/ali/Documents/BioCaddie/data/citation/june_27/all_citations_summary.txt 2012 2014
+$ java org.biocaddie.citationanalysis.network.ConstructNetwork all_citations.txt all_citations_summary.txt 2012 2014
 
-$ java org.biocaddie.citationanalysis.network.ConstructNetwork /Users/ali/Documents/BioCaddie/data/citation/june_27/all_citations.txt /Users/ali/Documents/BioCaddie/data/citation/june_27/all_citations_summary.txt 2009 2011
+$ java org.biocaddie.citationanalysis.network.ConstructNetwork all_citations.txt all_citations_summary.txt 2009 2011
 
-$ java org.biocaddie.citationanalysis.network.ConstructNetwork /Users/ali/Documents/BioCaddie/data/citation/june_27/all_citations.txt /Users/ali/Documents/BioCaddie/data/citation/june_27/all_citations_summary.txt 2006 2008
+$ java org.biocaddie.citationanalysis.network.ConstructNetwork all_citations.txt all_citations_summary.txt 2006 2008
 
 2.4: We can convert paper citation network to paper co-citation network, which is usually more connected (flag = 1).
 
-$ java org.biocaddie.citationanalysis.network.NetworkUtils 1 /Users/ali/Documents/BioCaddie/data/citation/june_27/2014_2012_paper_citation_network.net
+$ java org.biocaddie.citationanalysis.network.NetworkUtils 1 2014_2012_paper_citation_network.net
 
 2.5: Clean the journal citation network by - excluding self-journal citations, - excluding four major interdisciplinary journals (Nature, Science, PNAS, PlosOne), and- excluding journals which make$receive citations less than 1 (flag = 2).
 
-$ java org.biocaddie.citationanalysis.network.NetworkUtils 2 /Users/ali/Documents/BioCaddie/data/citation/june_27/2014_2012_journal_citation_network.net
+$ java org.biocaddie.citationanalysis.network.NetworkUtils 2 2014_2012_journal_citation_network.net
 
 2.6: Print network summary (global properties) of a given network  (flag = 3):
 
-$ java org.biocaddie.citationanalysis.network.NetworkUtils 3 /Users/ali/Documents/BioCaddie/data/citation/june_27/2008_2006_journal_citation_network.net
+$ java org.biocaddie.citationanalysis.network.NetworkUtils 3 2008_2006_journal_citation_network.net
 
 
 PART 3: NETWORK METRICS: For a given network in Pajek.net format, compute three types of metrics for each node: inDegree centrality(citation count), pageRank and betweenness centrality.
@@ -70,17 +70,13 @@ Call: java org.biocaddie.citationanalysis.network.NetworkMeasuresMetrics [flag] 
 
 flag values= 1:pageRank 2:betweenness, 12: both pageRank and betweenness
 
-$ java -Xmx28000m org.biocaddie.citationanalysis.network.NetworkMeasuresMetrics 1 /Users/ali/Documents/BioCaddie/data/citation/june_27/2014_2012_paper_citation_network.net 0.5
-
-3.1: We can parse the network_metrics file to find the top-10 pageRank papers using	
+$ java -Xmx28000m org.biocaddie.citationanalysis.network.NetworkMeasuresMetrics 1 2014_2012_paper_citation_network.net 0.5
 
 PART 4: COMMUNITY DETECTION : We analyze the community structure using InfoMap. Download InfoMap from http://www.mapequation.org/code.html and install it using make.
 
-4.1: Run infoMap for the paper co-citation network in an undirected manner with N=5 attemps:
+4.1: Run infoMap for the paper co-citation network in an undirected manner with N=5 attemps. N=5 number of attemps is important. Since infoMap algorithm is heuristic, for example if you run with N=1, most probably you cannot find optimum or best clustering. Run it with at least N=5, if you have time run it with N=10.
 
-N=5 number of attemps is important. Since infoMap algorithm is heuristic, for example if your run N=1, most probably you cannot find optimum or best clustering. Run it with at least N=5, if you have time run it with N=10.
-
-$ ./Infomap /Users/ali/Documents/BioCaddie/data/citation/june_27/2014_2012_paper_citation_network_cocitation.net output_directory/ --hard-partitions --tree --bftree --map --undirected --seed 5234535 -N 5 -vvv
+$ ./Infomap 2014_2012_paper_citation_network_cocitation.net output_directory/ --hard-partitions --tree --bftree --map --undirected --seed 5234535 -N 5 -vvv
 
 It will generate three kind of output files: 
 
@@ -108,11 +104,11 @@ Repeat this process, let's say for the largest 15 modules.
 
 (10 = number of attemps and 100 = bootstrap resamples) it is important, for example if you run 5 5, then you most probably cannot find the significant clusters.
 
-$ ./conf-infomap 765677 /Users/ali/Documents/BioCaddie/data/citation/june_27/2014_2012_journal_citation_network_clean.net 10 100 0.9
+$ ./conf-infomap 765677 2014_2012_journal_citation_network_clean.net 10 100 0.9
 
-$ ./conf-infomap 765677 /Users/ali/Documents/BioCaddie/data/citation/june_27/2011_2009_journal_citation_network_clean.net 10 100 0.9
+$ ./conf-infomap 765677 2011_2009_journal_citation_network_clean.net 10 100 0.9
 
-$ ./conf-infomap 765677 /Users/ali/Documents/BioCaddie/data/citation/june_27/2008_2006_journal_citation_network_clean.net 10 100 0.9
+$ ./conf-infomap 765677 2008_2006_journal_citation_network_clean.net 10 100 0.9
 
 Then upload the .map files of all these three networks into MapGenerator and visualize the change in the mapping using the Alluvial Generator. http://www.mapequation.org/apps/MapGenerator.html
 
