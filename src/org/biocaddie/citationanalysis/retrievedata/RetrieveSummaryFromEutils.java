@@ -51,21 +51,33 @@ public class RetrieveSummaryFromEutils {
 	 */
 	public static void main(String[] args) throws Exception {
 
-		//Get the inputFileName from user 
-	/*	if(args.length != 1){
-    		System.out.println("Call: java org.biocaddie.citation.retrievedata.RetrieveSummaryFromEutils <all_pubmed_id.txt>");
+		//Get the inputFileName from user		
+		if(args.length < 2){			
+    		System.out.println("Call: java org.biocaddie.citationanalysis.retrievedata.RetrieveSummaryFromEutils <flag 0:PdbCiteCascades 1:WholePubMedIds> <all_pubmed_id.txt or 26000000 & output_directory>");
+    		System.out.println("If flag=0 then provide all_pubmed_id.txt.");       		
+    		System.out.println("If flag=1 then provide the last_pubmed_id, so we will retrieve summaries between 1 and last_pubmed_id. And provide output directory");       		
     		System.exit(1);
     	}
-		String fileNameFullPath = args[0];		
-		String fileSeparator = System.getProperty("file.separator");		
-		String pathToFile = fileNameFullPath.substring(0, fileNameFullPath.lastIndexOf(fileSeparator)+1);		
+
+		String flag = args[0]; // 0:CiteCascades 1:WholePubMed Ids		
 		
-		//Get the pubMed Summary for all pubmedId's
-    	getPubMedSummary(fileNameFullPath, pathToFile+"all_citations_summary.xml");
-*/
-    	//Get the summary of whole PubMed starting from 1 to 26 million
-    	getWholePubMedSummary("/Users/ali/Documents/BioCaddie/data/citation/april_29/whole_pubmed/all_citations_summary.xml");
-    	//Done...
+		if (flag.equals("0")){ // citation cascades
+			String fileNameFullPath = args[1];		
+			String fileSeparator = System.getProperty("file.separator");		
+			String pathToFile = fileNameFullPath.substring(0, fileNameFullPath.lastIndexOf(fileSeparator)+1);		
+			
+			//Get the pubMed Summary for all pubmedId's
+			getPubMedSummary(fileNameFullPath, pathToFile+"all_citations_summary.xml");
+		}else if (flag.equals("1")){ //whole pubmed ids				
+			int last_pubmed_id = Integer.valueOf(args[1]).intValue();
+			String pathToFile = args[2]; 			
+
+			//Get the summary of whole PubMed starting from 1 to n
+			getWholePubMedSummary(pathToFile+"all_citations_summary.xml", last_pubmed_id);
+		}else{
+			System.out.println("!!!Flag should be 0 or 1.");
+			System.exit(1);			
+		}
 	}
 
 	/**
@@ -75,25 +87,9 @@ public class RetrieveSummaryFromEutils {
 	 * @throws IOException
 	 * @throws InterruptedException
 	 */
-	public static synchronized void getWholePubMedSummary(String newXmlFileName) throws Exception{
+	public static synchronized void getWholePubMedSummary(String newXmlFileName, int last_pubmed_id) throws Exception{
 
-	  /*System.out.println("Start reading "+ fileName);	    
-	    Map<String, Integer> all_pubmed_id_map = new HashMap<String, Integer>(); //all pubmed id's
-	    //STEP 1: Read the file into the all_pubmed_id_map 
-	    BufferedReader reader = Files.newBufferedReader(Paths.get(fileName), ENCODING);
-		String line = null; 
-	    while ((line = reader.readLine()) != null) {
-	    	//skip the header line and any empty lines
-	    	if (line.startsWith("*") || line.trim().equals("")) //first line or last line
-	    		continue;
-	    	int pos = line.indexOf("|"); 
-	    	String existingPmId =  line.substring(0, pos-1);
-	    	String cnt = line.substring(pos+2);	    	
-	    	all_pubmed_id_map.put(existingPmId, new Integer(cnt));
-	    }
-	    */
-	    System.out.println("Will retrieve the whole pubmed summary for between 1 and 26M");
-	    System.out.println("It may take around ... hour or more ...");
+	    System.out.println("Will retrieve the whole pubmed summary between 1 and "+ last_pubmed_id);
 	    System.out.println("Start Time: " + dateFormat.format(new Date()));	    
 	    
 	    //STEP 2: each HTTPRequest will retrieve the summary of 10K pmIds, because of that generate requestIdListVector where each item contains requestIdList for 10K 
@@ -101,7 +97,7 @@ public class RetrieveSummaryFromEutils {
 		StringBuffer requestIdList = new StringBuffer(); 
 		int cnt_tmp = 0;
 	    //for (Iterator<Map.Entry<String, Integer>> iter = all_pubmed_id_map.entrySet().iterator(); iter.hasNext(); ) {
-	    for (int i = 1; i<=26000000; i++){
+	    for (int i = 1; i<=last_pubmed_id; i++){
 	    	//Map.Entry<String, Integer> entry = iter.next();	    
 	    	if (cnt_tmp == 0)
 	    		requestIdList.append("&id=");
@@ -191,7 +187,6 @@ public class RetrieveSummaryFromEutils {
 	    	all_pubmed_id_map.put(existingPmId, new Integer(cnt));
 	    }
 	    System.out.println("Will retrieve the pubmed summary for " + all_pubmed_id_map.size() + " pubmed ids.");
-	    System.out.println("It may take around one hour or more ...");
 	    System.out.println("Start Time: " + dateFormat.format(new Date()));	    
 	    
 	    //STEP 2: each HTTPRequest will retrieve the summary of 10K pmIds, because of that generate requestIdListVector where each item contains requestIdList for 10K 
@@ -249,7 +244,7 @@ public class RetrieveSummaryFromEutils {
 
 			    Thread.sleep(10000);  		  
 
-			    outStringBuffer = new StringBuffer(); //outAllStringBuffer = new StringBuffer(); newPmIdMap.clear(); // clear variables
+			    outStringBuffer = new StringBuffer(); 
 				eutilsHttpRequest(firstRequestList, lastRequestList, elink_url, elink_urlParameters, outStringBuffer);
 				out.write(outStringBuffer.toString());	out.flush();  
 			}			
@@ -266,7 +261,6 @@ public class RetrieveSummaryFromEutils {
 	public static synchronized void eutilsHttpRequest(boolean firstRequestList, boolean lastRequestList, String elink_url, String elink_urlParameters, StringBuffer outStringBuffer) throws Exception{
 
     	//HTTP Connection
-	    //String elink_urlParameters = toolEmailLinkname + requestIdListVector.get(i).toString();	    
 	    URL url = new URL(elink_url);
 	    HttpURLConnection conn = (HttpURLConnection) url.openConnection();
 	    conn.setRequestMethod("POST");
@@ -295,7 +289,6 @@ public class RetrieveSummaryFromEutils {
 			//write the header of the XML only from the first HTTP request 
 			if (inputLine.trim().startsWith("<?xml") || inputLine.trim().startsWith("<!DOCTYPE") || inputLine.trim().startsWith("<eSummaryResult>")){
 				if (firstRequestList){
-					//out.write(inputLine); 	out.newLine();						
 					outStringBuffer.append(inputLine); 
 					outStringBuffer.append(System.lineSeparator());
 		        }	
@@ -306,7 +299,6 @@ public class RetrieveSummaryFromEutils {
 			//write the footer of XML only from the last HTTP request
 			if (inputLine.trim().startsWith("</eSummaryResult>")){
 				if (lastRequestList){
-					//out.write(inputLine);		        	out.newLine();
 					outStringBuffer.append(inputLine); 
 					outStringBuffer.append(System.lineSeparator());
 		        }
@@ -321,7 +313,6 @@ public class RetrieveSummaryFromEutils {
 			//write the content of each HTTP request 
 			outStringBuffer.append(inputLine); 
 			outStringBuffer.append(System.lineSeparator());
-	        //out.write(inputLine);         out.newLine();        
 	        
 	        inputLine = inputLine.trim();
 	        if (inputLine.length() > 0)

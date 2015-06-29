@@ -60,49 +60,55 @@ public class RetrieveCitationFromEutils {
 	public static void main(String[] args) throws Exception {
 
 	//Get the inputFileName from user 
-		if(args.length != 1){
-    		System.out.println("Call: java org.biocaddie.citation.retrievedata.RetrieveCitationFromEutils <PdbId_PubMedId.csv>");
+		if(args.length != 2){
+    		System.out.println("Call: java org.biocaddie.citationanalysis.retrievedata.RetrieveCitationFromEutils <flag 0:PdbCiteCascades 1:WholePubMedIds> <PdbId_PubMedId.csv or all_pubmed_id.txt>");
+    		System.out.println("If flag=0 then provide PdbId_PubMedId.csv from PDB website. If flag=1 then provide list of all valid pubMed ids.");   
     		System.exit(1);
     	}
-		String fileNameFullPath = args[0];		
+
+		String flag = args[0]; // 0:CiteCascades 1:WholePubMed Ids		
+		String fileNameFullPath = args[1];		
 		String fileSeparator = System.getProperty("file.separator");		
 		String pathToFile = fileNameFullPath.substring(0, fileNameFullPath.lastIndexOf(fileSeparator)+1);		
-    	
-    	//output files
-		out_all_citations = new BufferedWriter(new FileWriter(new File(pathToFile + "all_citations.xml")));
-		out_statistics = new BufferedWriter(new FileWriter(new File(pathToFile + "all_statistics.txt")));
+		
+		if (flag.equals("0")){ // citation cascades			
+	    	//output files
+			out_all_citations = new BufferedWriter(new FileWriter(new File(pathToFile + "all_citations.xml")));
+			out_statistics = new BufferedWriter(new FileWriter(new File(pathToFile + "all_statistics.txt")));
 
-    	//STEP 1: Read the input file and generate pubmed_id_map which contains the unique PMids of primary citations. (First-level)
-		Map<String, Integer> pubmed_id_map = new HashMap<String, Integer>(); //unique pubMed Id's (key: pubMedId value: count)		
-    	readInputFile(fileNameFullPath, pubmed_id_map);
-    	    	
-	    //STEP 2: Starting from the first-level(unique primary citations), iteratively navigate the citations level, until we have the all pubMed IDs in our globalPmIdMap
-    	//For each level, first we retrieve the citation cascades (forward in time), then we retrieve the reference cascades (backward in time), until we have the whole network
-    	int cascadeLevel = 1;	    
-	    while (pubmed_id_map.size() > 0){
-	    	pubmed_id_map = getPubMedCitations(pathToFile+"citations_level_"+cascadeLevel+".xml", pubmed_id_map, cascadeLevel);
-	    	//pubmed_id_map = getPubMedCitations(pathToFile+"references_level_"+cascadeLevel+".xml", pubmed_id_map, cascadeLevel);
-	    	cascadeLevel++;
-	    }
-	    
-	    //STEP 3: Write globalPubMedIdMap to a file (the list of all unique pmIds in our network)
-	    BufferedWriter out = new BufferedWriter(new FileWriter(new File(pathToFile+"all_pubmed_id.txt")));
-        out.write("*PubMed Id | Count)  size: " + globalPubMedIdMap.size());
-        out.newLine();
-	    for (Iterator<Map.Entry<String, Integer>> iter = globalPubMedIdMap.entrySet().iterator(); iter.hasNext(); ) {	    		    	
-	    	Map.Entry<String, Integer> entry = iter.next();
-	        out.write(entry.getKey() + " | " + entry.getValue());
+	    	//STEP 1: Read the input file and generate pubmed_id_map which contains the unique PMids of primary citations. (First-level)
+			Map<String, Integer> pubmed_id_map = new HashMap<String, Integer>(); //unique pubMed Id's (key: pubMedId value: count)		
+	    	readInputFile(fileNameFullPath, pubmed_id_map);
+	    	    	
+		    //STEP 2: Starting from the first-level(unique primary citations), iteratively navigate the citations level, until we have the all pubMed IDs in our globalPmIdMap
+	    	//For each level, first we retrieve the citation cascades (forward in time), then we retrieve the reference cascades (backward in time), until we have the whole network
+	    	int cascadeLevel = 1;	    
+		    while (pubmed_id_map.size() > 0){
+		    	pubmed_id_map = getPubMedCitations(pathToFile+"citations_level_"+cascadeLevel+".xml", pubmed_id_map, cascadeLevel, flag);
+		    	cascadeLevel++;
+		    }
+		    
+		    //STEP 3: Write globalPubMedIdMap to a file (the list of all unique pmIds in our network)
+		    BufferedWriter out = new BufferedWriter(new FileWriter(new File(pathToFile+"all_pubmed_id.txt")));
+	        out.write("*PubMed Id | Count)  size: " + globalPubMedIdMap.size());
 	        out.newLine();
-	    }
-        out.flush();       
-        out.close();    
-	    
-		System.out.println("DONE !!!");	out_statistics.write("DONE !!!");
-		out_statistics.flush();
-		out_statistics.close();				
-		
-		
-	//	getWholePubMedCitations();
+		    for (Iterator<Map.Entry<String, Integer>> iter = globalPubMedIdMap.entrySet().iterator(); iter.hasNext(); ) {	    		    	
+		    	Map.Entry<String, Integer> entry = iter.next();
+		        out.write(entry.getKey() + " | " + entry.getValue());
+		        out.newLine();
+		    }
+	        out.flush();       
+	        out.close();    
+		    
+			System.out.println("DONE !!!");	out_statistics.write("DONE !!!");
+			out_statistics.flush();
+			out_statistics.close();			
+		}else if (flag.equals("1")){ //whole pubmed ids						
+			getWholePubMedCitations(pathToFile, fileNameFullPath, flag);			
+		}else {
+			System.out.println("!!!Flag should be 0 or 1.");
+			System.exit(1);
+		}		    							
 	}
 
 	/**
@@ -143,24 +149,24 @@ public class RetrieveCitationFromEutils {
 	    statistics.append("Number of PDB id: " + cnt_pdb_id);statistics.append(System.getProperty("line.separator"));
 	    statistics.append("Number of PDB id with a primary citation: " + cnt_primary_citation);statistics.append(System.getProperty("line.separator"));
 	    statistics.append("Number of unique primary citation: " + pubmed_id_map.size());statistics.append(System.getProperty("line.separator"));
-	    statistics.append("Will retrieve the citation cascades starting from the " + pubmed_id_map.size() + " unique primary citations (using eutils.pubmed)");statistics.append(System.getProperty("line.separator"));
-	    statistics.append("It may take around one hour or more ...");statistics.append(System.getProperty("line.separator"));
+	    statistics.append("Will retrieve the citation+reference cascades starting from the " + pubmed_id_map.size() + " unique primary citations (using eutils.pubmed)");statistics.append(System.getProperty("line.separator"));
 	    statistics.append("------------------------------------------------------ "); statistics.append(System.getProperty("line.separator"));
     	System.out.println(statistics.toString()); out_statistics.write(statistics.toString());
     	out_statistics.flush();		
 	}
 
-	public static synchronized void getWholePubMedCitations() throws Exception{
+	public static synchronized void getWholePubMedCitations(String pathToFile, String fileNameFullPath, String flag) throws Exception{
 		
 		//eutils HTTP requests usually aborted after 3 minutes. Because of that, for each level, we divide pubMedIdList into 10K partitions and send HttpRequests for them,
 		//but we write the result of each level to a single file. 
-		
+		System.out.println("Start reading: " + fileNameFullPath);
+
 		//This is a special method, first we read the whole pubMed id from the file
 		int level = 1;
 		Map<String, Integer> pmIdMap = new HashMap<String, Integer>();
-		String newXmlFileName = "/Users/ali/Documents/BioCaddie/data/citation/april_29/whole_pubmed/all_citations.xml";
+		String newXmlFileName = pathToFile + "all_citations.xml";
 		
-	    BufferedReader reader = Files.newBufferedReader(Paths.get("/Users/ali/Documents/BioCaddie/data/citation/april_29/whole_pubmed/all_pubmed_id.txt"), ENCODING);
+	    BufferedReader reader = Files.newBufferedReader(Paths.get(fileNameFullPath), ENCODING);
 		String line = null; 
 	    while ((line = reader.readLine()) != null) {
 	    	//skip the header line and any empty lines
@@ -168,6 +174,7 @@ public class RetrieveCitationFromEutils {
 	    		continue;	    	
 	    	pmIdMap.put(line.trim(), 0); //default value 0, we don't need value
 	    }		
+	    System.out.println("Will retrieve the citation+reference cascades for " + pmIdMap.size() + " unique pubmed ids (using eutils.pubmed)");
 
 	    //Generate the pmIdList stringBuffer from the HashMap
     	Vector<StringBuffer> requestIdListVector = new Vector<StringBuffer>(); //keep requestLists of 10K size
@@ -192,16 +199,12 @@ public class RetrieveCitationFromEutils {
 	    }
 	    
 		Map<String, Integer> newPmIdMap = new HashMap<String, Integer>(); //new unique pmId's
-		//Map<String, Integer> newPmIdMapBackup = new HashMap<String, Integer>(); //clone, we need this clone when an exception occurs
 	    BufferedWriter out = new BufferedWriter(new FileWriter(new File(newXmlFileName)));
 	    
-	    String str_level = "CASCADE LEVEL: " + level; System.out.println(str_level);                      //out_statistics.write(str_level); out_statistics.newLine();
-	    String startTime = "Start Time: " + dateFormat.format(new Date()); System.out.println(startTime); //out_statistics.write(startTime); out_statistics.newLine();
-	    //out_statistics.flush();
+	    String startTime = "Start Time: " + dateFormat.format(new Date()); System.out.println(startTime); 
 		
 		String elink_url = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi";
 	    String toolEmailLinkname ="tool=BioCADDIE&email=altunkay@hawaii.edu&retmode=xml&dbfrom=pubmed&cmd=neighbor&linkname=pubmed_pubmed_citedin,pubmed_pubmed_refs";
-	    //String toolEmailLinkname ="tool=BioCADDIE&email=altunkay@hawaii.edu&retmode=xml&dbfrom=pubmed&cmd=neighbor&linkname=pubmed_pubmed_refs";
 	    
 	    //iterate through the requestIdListVector
 	    for (int i = 0; i < requestIdListVector.size(); i++){
@@ -218,7 +221,7 @@ public class RetrieveCitationFromEutils {
 	    	
 			
 			try {
-				eutilsHttpRequest(firstRequestList, lastRequestList, elink_url, elink_urlParameters, level, newPmIdMap, outStringBuffer, outAllStringBuffer);
+				eutilsHttpRequest(firstRequestList, lastRequestList, elink_url, elink_urlParameters, level, newPmIdMap, outStringBuffer, outAllStringBuffer, flag);
 				out.write(outStringBuffer.toString());	out.flush();  
 			} catch (Exception e) {
 				//If there is an exception such as "SocketException", connection problem or truncated XML, wait 5 minutes and retry. 
@@ -234,7 +237,7 @@ public class RetrieveCitationFromEutils {
 			    outAllStringBuffer = new StringBuffer(); 
 			    
 				try {
-					eutilsHttpRequest(firstRequestList, lastRequestList, elink_url, elink_urlParameters, level, newPmIdMap, outStringBuffer, outAllStringBuffer);
+					eutilsHttpRequest(firstRequestList, lastRequestList, elink_url, elink_urlParameters, level, newPmIdMap, outStringBuffer, outAllStringBuffer, flag);
 					out.write(outStringBuffer.toString());	out.flush();
 				} catch (Exception e1) {				
 					errorMessage = e1.getMessage(); 
@@ -247,71 +250,22 @@ public class RetrieveCitationFromEutils {
 				    outStringBuffer = new StringBuffer(); 
 				    outAllStringBuffer = new StringBuffer(); 
 
-					eutilsHttpRequest(firstRequestList, lastRequestList, elink_url, elink_urlParameters, level, newPmIdMap, outStringBuffer, outAllStringBuffer);
+					eutilsHttpRequest(firstRequestList, lastRequestList, elink_url, elink_urlParameters, level, newPmIdMap, outStringBuffer, outAllStringBuffer, flag);
 					out.write(outStringBuffer.toString());	out.flush();				    
-				}  
-				
+				}  				
 			}
 	    }
 	    
         //flush and close the outstream
-        out.flush();  //out_all_citations.flush();  
+        out.flush();    
         out.close();        
 		
 	    String endTime = "End Time  : " + dateFormat.format(new Date());
-        System.out.println(endTime);  //out_statistics.write(endTime); out_statistics.newLine(); out_statistics.flush();
-
-	    //Now, we have completed all HTTP requests for this cascade level
-	    //write the received pmIDs to the globalMap, we are sure that they don't exist in the globalPmIdMap, it is checked in the previous level
-/*		int pmTotal = 0;
-	    for (Iterator<Map.Entry<String, Integer>> iter = pmIdMap.entrySet().iterator(); iter.hasNext(); ) {	    		    	
-	    	Map.Entry<String, Integer> entry = iter.next();	    	
-	    	globalPubMedIdMap.put(entry.getKey(), entry.getValue());
-	    	pmTotal = pmTotal + entry.getValue();
-	    }		
-		
-	    //If the new citations are already exist in the globalPmIdMap, do not need to request them again.
-	    int newPmTotal = 0; int newPmNotExistTotal = 0;
-		Map<String, Integer> newPmIdMapNotExist = new HashMap<String, Integer>(); //new unique pmId's
-	    for (Iterator<Map.Entry<String, Integer>> iter = newPmIdMap.entrySet().iterator(); iter.hasNext(); ) {	    		    	
-	    	Map.Entry<String, Integer> entry = iter.next();	   
-	    	newPmTotal = newPmTotal + entry.getValue();
-	    	if (globalPubMedIdMap.containsKey(entry.getKey())){
-	    		int currentValue = globalPubMedIdMap.get(entry.getKey()).intValue();
-	    		globalPubMedIdMap.put(entry.getKey(), new Integer(currentValue + entry.getValue().intValue()));
-	    	}else{
-	    		newPmIdMapNotExist.put(entry.getKey(), entry.getValue());
-	    		newPmNotExistTotal = newPmNotExistTotal + entry.getValue();
-	    	}
-	    }
-	    
-	    //if this is the last cascade level (newPmIdMapNotExist.size() == 0) then append the endTag and flush/close the all_citations.xml
-	    if (newPmIdMapNotExist.size() == 0){
-	    	out_all_citations.write("</eLinkResult>");
-			out_all_citations.newLine();					
-	    	out_all_citations.flush();
-	    	out_all_citations.close();
-	    }
-	    
-	    //Print statistics of the current level to the both command prompt and statistics.txt file
-	    StringBuffer statistics = new StringBuffer();     
-	    statistics.append("Statistics: ");    statistics.append(System.getProperty("line.separator"));
-	    statistics.append("Number of PM IDs retrieved at this level: " + pmIdMap.size());statistics.append(System.getProperty("line.separator")); 
-	    statistics.append("PM ids (Total | Unique): " + pmTotal + " | " + pmIdMap.size());statistics.append(System.getProperty("line.separator"));
-	    statistics.append("newPM Ids or Citations (Total | Unique): " + newPmTotal + " | " + newPmIdMap.size()); statistics.append(System.getProperty("line.separator"));
-	    statistics.append("newPM Ids or Citations - Not ExistBefore (Total | Unique): " + newPmNotExistTotal +  " | " + newPmIdMapNotExist.size()); statistics.append(System.getProperty("line.separator"));
-	    statistics.append("Number of PM IDs will be retrieved at the next level: " + newPmIdMapNotExist.size()); statistics.append(System.getProperty("line.separator"));
-	    statistics.append("Size of global PM IDs at this level: " + globalPubMedIdMap.size()); statistics.append(System.getProperty("line.separator"));    
-	    statistics.append("------------------------------------------------------ "); statistics.append(System.getProperty("line.separator"));
-    	System.out.println(statistics.toString()); out_statistics.write(statistics.toString());
-    	out_statistics.flush();
-	    
-	    return newPmIdMapNotExist;
-*/	    
+        System.out.println(endTime);  
 	}	
 	
 	/**
-	 * get pubMed citations of each pmId in the "pmIdList" and write all of them into a new XML file ("newXmlFileName")
+	 * get pubMed citations+references of each pmId in the "pmIdList" and write all of them into a new XML file ("newXmlFileName")
 	 * generate summary (total # of pmIDs, unique # of pmIDs, # of new unique pmIDs in the all of the citations in this level)
 	 * @param newXmlFileName
 	 * @param pmIdMap : list of pubmed id's that will be retrieved in this cascade_level
@@ -321,7 +275,7 @@ public class RetrieveCitationFromEutils {
 	 * @throws IOException
 	 * @throws InterruptedException
 	 */
-	public static synchronized Map<String, Integer> getPubMedCitations(String newXmlFileName, Map<String, Integer> pmIdMap, int level) throws Exception{
+	public static synchronized Map<String, Integer> getPubMedCitations(String newXmlFileName, Map<String, Integer> pmIdMap, int level, String flag) throws Exception{
 		
 		//eutils HTTP requests usually aborted after 3 minutes. Because of that, for each level, we divide pubMedIdList into 10K partitions and send HttpRequests for them,
 		//but we write the result of each level to a single file. 
@@ -358,7 +312,6 @@ public class RetrieveCitationFromEutils {
 		
 		String elink_url = "http://eutils.ncbi.nlm.nih.gov/entrez/eutils/elink.fcgi";
 	    String toolEmailLinkname ="tool=BioCADDIE&email=altunkay@hawaii.edu&retmode=xml&dbfrom=pubmed&cmd=neighbor&linkname=pubmed_pubmed_citedin,pubmed_pubmed_refs";
-	    //String toolEmailLinkname ="tool=BioCADDIE&email=altunkay@hawaii.edu&retmode=xml&dbfrom=pubmed&cmd=neighbor&linkname=pubmed_pubmed_refs";
 	    
 	    //iterate through the requestIdListVector
 	    for (int i = 0; i < requestIdListVector.size(); i++){
@@ -376,7 +329,7 @@ public class RetrieveCitationFromEutils {
 			
 			try {
 				newPmIdMapBackup = new HashMap<String, Integer>(newPmIdMap); //backup the current newPmIdMap
-				eutilsHttpRequest(firstRequestList, lastRequestList, elink_url, elink_urlParameters, level, newPmIdMap, outStringBuffer, outAllStringBuffer);
+				eutilsHttpRequest(firstRequestList, lastRequestList, elink_url, elink_urlParameters, level, newPmIdMap, outStringBuffer, outAllStringBuffer, flag);
 				out.write(outStringBuffer.toString());	out.flush();  
 				out_all_citations.write(outAllStringBuffer.toString()); out_all_citations.flush();
 			} catch (Exception e) {
@@ -394,7 +347,7 @@ public class RetrieveCitationFromEutils {
 			    outAllStringBuffer = new StringBuffer(); 
 			    newPmIdMap = new HashMap<String, Integer>(newPmIdMapBackup); //if there is an exception, restore the current newPmIdMapBackup
 			    
-				eutilsHttpRequest(firstRequestList, lastRequestList, elink_url, elink_urlParameters, level, newPmIdMap, outStringBuffer, outAllStringBuffer);
+				eutilsHttpRequest(firstRequestList, lastRequestList, elink_url, elink_urlParameters, level, newPmIdMap, outStringBuffer, outAllStringBuffer, flag);
 				out.write(outStringBuffer.toString());	out.flush();  
 				out_all_citations.write(outAllStringBuffer.toString()); out_all_citations.flush();
 			}
@@ -455,7 +408,7 @@ public class RetrieveCitationFromEutils {
 	    return newPmIdMapNotExist;
 	}	
 
-	public static synchronized void eutilsHttpRequest(boolean firstRequestList, boolean lastRequestList, String elink_url, String elink_urlParameters, int level, Map<String, Integer> newPmIdMap, StringBuffer outStringBuffer, StringBuffer outAllStringBuffer) throws Exception{
+	public static synchronized void eutilsHttpRequest(boolean firstRequestList, boolean lastRequestList, String elink_url, String elink_urlParameters, int level, Map<String, Integer> newPmIdMap, StringBuffer outStringBuffer, StringBuffer outAllStringBuffer, String flag) throws Exception{
 		
     	//HTTP Connection
 	    //String elink_urlParameters = toolEmailLinkname + requestIdListVector.get(i).toString();	    
@@ -488,10 +441,8 @@ public class RetrieveCitationFromEutils {
 			//write the header of the XML only from the first HTTP request 
 			if (inputLine.trim().startsWith("<?xml") || inputLine.trim().startsWith("<!DOCTYPE") || inputLine.trim().startsWith("<eLinkResult>")){
 				if (firstRequestList){
-					//out.write(inputLine); out.newLine();
 					outStringBuffer.append(inputLine); outStringBuffer.append(System.lineSeparator());
 					if (level == 1){ // write the header of the XML only from the first HTTP request of first cascadeLevel (for the all_citations.xml file)
-						//out_all_citations.write(inputLine);	out_all_citations.newLine();
 						outAllStringBuffer.append(inputLine); outAllStringBuffer.append(System.lineSeparator());
 					}
 		        }
@@ -502,7 +453,6 @@ public class RetrieveCitationFromEutils {
 			//write the footer of XML only from the last HTTP request
 			if (inputLine.trim().startsWith("</eLinkResult>")){
 				if (lastRequestList){
-					//out.write(inputLine); out.newLine();
 					outStringBuffer.append(inputLine); outStringBuffer.append(System.lineSeparator());
 		        }
 	        	previousLine = inputLine.trim();					
@@ -510,24 +460,24 @@ public class RetrieveCitationFromEutils {
 			}
 			
 			//write the content of each HTTP request regularly to the both citations_level_?.xml and all_citations.xml
-	        //out.write(inputLine); out.newLine();
-			//out_all_citations.write(inputLine);  out_all_citations.newLine();
 			outStringBuffer.append(inputLine); outStringBuffer.append(System.lineSeparator());	        
 	        outAllStringBuffer.append(inputLine); outAllStringBuffer.append(System.lineSeparator());
 	        
 	        inputLine = inputLine.trim();
 	        
-	        // We just comment-out this for getWholePubMedCitations
-	       /* if (inputLine.startsWith("<Id>") && previousLine.equals("<Link>")){	        		        	
-	        	String id = inputLine.substring(inputLine.indexOf(">")+1, inputLine.lastIndexOf("<"));	        	
-		    	if (newPmIdMap.containsKey(id)){
-		    		int currentValue = newPmIdMap.get(id).intValue();
-		    		newPmIdMap.put(id, new Integer(currentValue+1));	    		
-		    	}else{	    		
-		    		newPmIdMap.put(id, new Integer(1));
-		    	}		        	
-	        }	        
-	        */
+	        // This is only needed for citeCascades, not needed for whole pubmed
+	        if (flag.equals("0")){
+		        if (inputLine.startsWith("<Id>") && previousLine.equals("<Link>")){	        		        	
+		        	String id = inputLine.substring(inputLine.indexOf(">")+1, inputLine.lastIndexOf("<"));	        	
+			    	if (newPmIdMap.containsKey(id)){
+			    		int currentValue = newPmIdMap.get(id).intValue();
+			    		newPmIdMap.put(id, new Integer(currentValue+1));	    		
+			    	}else{	    		
+			    		newPmIdMap.put(id, new Integer(1));
+			    	}		        	
+		        }	        
+	        }
+	        
 	        if (inputLine.length() > 0)
 	        	previousLine = inputLine;	        		        
 		}
@@ -538,43 +488,10 @@ public class RetrieveCitationFromEutils {
 		}
 		
         //close them
-		//out.flush();  
-		//out_all_citations.flush();
 		in.close(); 
 		inStream.close();
 		conn.disconnect();
 	    Thread.sleep(1000);  //wait 1 second between HttpRequests		    
 		
 	}
-
 }
-
-
-/*
-***********This code was used to verify the accuracy of the data retrieval, in a cascading style. You can manually set the cascade-levels. 
-        //MANUALLY generate XML file for each level. For the first level use the pdbDataApril2.csv, for the other levels use the xml file of previous level
-	    		
-		int cascadeLevel = 26;	  
-	    pmIdMap = readXmlFile(pathToFile + "citations_level_" + (cascadeLevel-1) + ".xml");	    
-	    //read current globalIdMap
-	    BufferedReader reader = Files.newBufferedReader(Paths.get(pathToFile + "all_pubmed_id.txt"), ENCODING);
-		String line = null; 
-	    while ((line = reader.readLine()) != null) {
-	    	//skip the header line and any empty lines
-	    	if (line.startsWith("*") || line.trim().equals("")) //first line or last line
-	    		continue;
-	    	int pos = line.indexOf("|"); 
-	    	String existingPmId =  line.substring(0, pos-1);
-	    	String cnt = line.substring(pos+2);	    	
-    		globalPmIdMap.put(existingPmId, new Integer(cnt));
-	    }
-	    
-	    //remove the existing pmIds from pmIdMap
-	    for (Iterator<Map.Entry<String, Integer>> iter = pmIdMap.entrySet().iterator(); iter.hasNext(); ) {	    		    	
-	    	Map.Entry<String, Integer> entry = iter.next();
-	    	if (globalPmIdMap.containsKey(entry.getKey()))
-	    		iter.remove();
-	    }	    	    	    
-    	pmIdMap = getPubMedCitations(pathToFile+"citations_level_"+cascadeLevel+".xml", pmIdMap, cascadeLevel);
-
-*/

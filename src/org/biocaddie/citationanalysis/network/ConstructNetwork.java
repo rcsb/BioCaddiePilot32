@@ -22,20 +22,21 @@ import java.util.Vector;
 import java.util.regex.Pattern;
 
 import org.biocaddie.citationanalysis.retrievedata.CitationAndRefLinkResultXmlParser;
-import org.biocaddie.citationanalysis.retrievedata.CitationLinkResultXmlParser;
 import org.biocaddie.citationanalysis.retrievedata.CitationSummaryResultXmlParser;
 import org.biocaddie.citationanalysis.retrievedata.DocSum;
 import org.biocaddie.citationanalysis.retrievedata.LinkSet;
 
 /**
  * This class reads two input files: 
- * 1-) all_citations.xml: which contains the links(citations) between the nodes(papers), and
- * 2-) all_citations_summary.xml: which contains additional information about nodes(papers).
+ * 1-) all_citations.txt: which contains the links(citations) between the nodes(papers), and
+ * 2-) all_citations_summary.txt: which contains additional information about nodes(papers).
  * 
  * Currently, this class constructs two kind of networks:
  * 1-) paper citation network: where nodes are papers and links are citations, and
  * 2-) journal citation network: where nodes are journals and links are citation between the journals. It is constructed by merging the paper citation network into journals.
  * ... later we may construct other kind of networks too...
+ * 
+ * Optionally you can give startYear endYear, then construct networks using the papers only published between these two years.
  *
  * Generates the network in Pajek.net file format.
  * infoMap wants nodeId's to start from 1 and increase sequentially, because of that we give node id's within the program, 
@@ -72,10 +73,21 @@ public class ConstructNetwork {
 	public static void main(String[] args) throws Exception {
 		
 		//Get the inputFileNames from user 
-		if(args.length != 2){
-    		System.out.println("Call: java org.biocaddie.citation.network.ConstructNetwork <all_citations.txt> <all_citations_summary.txt>");
+		if(args.length < 2){
+    		System.out.println("Call: java org.biocaddie.citation.network.ConstructNetwork <all_citations.txt> <all_citations_summary.txt> optionally <startYear> <endYear>");
     		System.exit(1);
     	}
+		int startYear = 0; int endYear = 0; String ext="";
+		if (args.length > 2){
+			startYear = Integer.valueOf(args[2]).intValue();
+			endYear = Integer.valueOf(args[3]).intValue();
+			if (startYear > endYear){
+	    		System.out.println("startYear cannot be greater than endYear");
+	    		System.exit(1);
+			}			
+			ext = endYear+"_"+startYear+"_";
+		}
+		
 		String fileNameAllCitations = args[0];
 		String fileNameAllCitationsSummary = args[1];
 		String fileSeparator = System.getProperty("file.separator");		
@@ -85,13 +97,13 @@ public class ConstructNetwork {
 		System.out.println("Start Time: " + dateFormat.format(new Date()));
 		
 		//Step 1: read citations and summary files
-		Map<Integer, PaperNode> paperNetworkMap = readCitationAndSummaryFiles(fileNameAllCitations, fileNameAllCitationsSummary);
+		Map<Integer, PaperNode> paperNetworkMap = readCitationAndSummaryFiles(fileNameAllCitations, fileNameAllCitationsSummary, startYear, endYear);
 
 		//Step 2: construct paper citation network
-		constructPaperCitationNetwork(paperNetworkMap, pathToFile+"temporal_analysis/2002_paper_citation_network.net");
+		constructPaperCitationNetwork(paperNetworkMap, pathToFile+ext+"paper_citation_network.net");
 	    
 		//Step 4: construct journal citation network by merging the paper network into journal network
-	 	constructJournalCitationNetwork(paperNetworkMap, pathToFile+"temporal_analysis/2002_journal_citation_network.net");
+	 	constructJournalCitationNetwork(paperNetworkMap, pathToFile+ext+"journal_citation_network.net");
 
 		System.out.println("End Time  : " + dateFormat.format(new Date()));	    				
 		System.out.println("DONE...");
@@ -106,21 +118,11 @@ public class ConstructNetwork {
 	 * @return : the hashMap Map<String, PaperNode>, where key=pubMedID and value is the PaperNode object.
 	 * @throws Exception
 	 */
-	private static Map<Integer, PaperNode> readCitationAndSummaryFiles(String fileNameAllCitations, String fileNameAllCitationsSummary) throws Exception {
+	private static Map<Integer, PaperNode> readCitationAndSummaryFiles(String fileNameAllCitations, String fileNameAllCitationsSummary, int startYear, int endYear) throws Exception {
 
-		System.out.println("Step 1: Reading all_citations.xml and all_citations_summary.xml ..." );
+		System.out.println("Step 1: Reading all_citations.txt and all_citations_summary.txt ..." );
 
-		Map<Integer, PaperNode> paperNetworkMap = new HashMap<Integer, PaperNode>(); //all nodes
-		//Map<String, String> paperNetworkMap2 = new HashMap<String, String>(); //all nodes
-
-		//Read all_citations_summary.xml for node properties (title, pubYear, journal_name, etc.)
-    	/*CitationSummaryResultXmlParser citationSummary = new CitationSummaryResultXmlParser(fileNameAllCitationsSummary);
-		for (int i = 0; i < citationSummary.docSumList.size(); i++) {
-			DocSum doc = citationSummary.docSumList.get(i);
-			PaperNode node = new PaperNode(doc.getId(), doc.getTitle(), doc.getLastAuthor(), doc.getPubDate(), doc.getNlmUniqueID(), doc.getFullJournalName());
-			paperNetworkMap.put(doc.getId(), node);
-		}*/
-		
+		Map<Integer, PaperNode> paperNetworkMap = new HashMap<Integer, PaperNode>(); //all nodes		
 		BufferedReader reader = Files.newBufferedReader(Paths.get(fileNameAllCitationsSummary), ENCODING);
 		String line = null; int lineCnt = 0;
 	    while ((line = reader.readLine()) != null) {
@@ -130,46 +132,24 @@ public class ConstructNetwork {
 
 	    	lineCnt++;
         	if ( ( lineCnt % 1000000 ) == 0 )
-        		System.out.println( lineCnt + " " + dateFormat.format(new Date()));
+        		System.out.println("Node count: "+ lineCnt + " " + dateFormat.format(new Date()));
 
 			String[] tokens  = line.split(Pattern.quote("||")); 
 			
 			int pubYear = Integer.valueOf(tokens[2].trim()).intValue();
-			if (pubYear > 2002 || pubYear < 2000)
-				continue;
+			if (startYear > 0 && endYear > 0){
+				if (pubYear > endYear || pubYear < startYear)
+					continue;
+			}
 			
 			PaperNode node = new PaperNode(tokens[0].trim(), tokens[1].trim(), tokens[5].trim(), tokens[2].trim(), tokens[4].trim(), tokens[3].trim());
 			paperNetworkMap.put(Integer.valueOf(tokens[0].trim()), node);
-			//paperNetworkMap2.put(tokens[0].trim(), tokens[0].trim());
 	    }
 		
 		int numNodesNotIncludedInNetwork = 0;
 		int numLinksNotIncludedInNetwork = 0;
-		//Read all_citations.xml to generate the links
-	    //CitationLinkResultXmlParser citationLink = new CitationLinkResultXmlParser(fileNameAllCitations);
-/*	    CitationAndRefLinkResultXmlParser citationLink = new CitationAndRefLinkResultXmlParser(fileNameAllCitations);
-	    for (int i = 0; i < citationLink.linkSetList.size(); i++) {
-	    	LinkSet linkSet = citationLink.linkSetList.get(i);
-	    	String from = linkSet.getId();	    	
-	    	if (!paperNetworkMap.containsKey(from)){
-	    		numNodesNotIncludedInNetwork++;
-	    		System.out.println("!!!Node not found in the summary.xml file: " + from);
-	    		continue;
-	    	}
-	    		
-	    	for (int j = 0; j < linkSet.citedinLinkIds.size(); j++){	    		
-	    		String to = linkSet.citedinLinkIds.get(j);
-		    	if (!paperNetworkMap.containsKey(to)){
-		    		numLinksNotIncludedInNetwork++;
-		    		continue;
-		    	}
-		    	//if paper A cites paper B then A->B
-	    		paperNetworkMap.get(from).inLinks.add(to);	    		
-	    		paperNetworkMap.get(to).outLinks.add(from);
-	    	}	
-	    }
-*/	    
-
+		
+		//Read all_citations.txt to generate the links
 		BufferedReader reader2 = Files.newBufferedReader(Paths.get(fileNameAllCitations), ENCODING);
 		line = null;  lineCnt = 0;
 	    while ((line = reader2.readLine()) != null) {
@@ -179,13 +159,12 @@ public class ConstructNetwork {
 
 	    	lineCnt++;
         	if ( ( lineCnt % 1000000 ) == 0 )
-        		System.out.println( lineCnt + " " + dateFormat.format(new Date()));
+        		System.out.println("Link count: " +lineCnt + " " + dateFormat.format(new Date()));
 	    	
 			String[] tokens  = line.split(Pattern.quote("||")); 
 	    	Integer from = Integer.valueOf(tokens[0].trim());	    	
 	    	if (!paperNetworkMap.containsKey(Integer.valueOf(from))){
 	    		numNodesNotIncludedInNetwork++;
-	    	//	System.out.println("!!!Node not found in the summary file: " + from);
 	    		continue;
 	    	}
 
@@ -211,8 +190,6 @@ public class ConstructNetwork {
 	    	System.out.println("Number of links not included in Network: " + numLinksNotIncludedInNetwork);
 		}
 		System.out.println("------------------------------------------------");
-		
-		
 		return paperNetworkMap;
 	}
 	
@@ -230,18 +207,23 @@ public class ConstructNetwork {
 		int numLinks = 0;
 
 	    BufferedWriter out = new BufferedWriter(new FileWriter(new File(outFileName)));
-        out.write("*Vertices " + numNodes); out.newLine(); String title = "";       
+        out.write("*Vertices " + numNodes); out.newLine(); String title = ""; String journalName = "";           
         int id = 1; //we generate id starting from 1, sequentially increasing, because infoMap needs this.
 	    for (Iterator<Map.Entry<Integer, PaperNode>> iter = paperNetworkMap.entrySet().iterator(); iter.hasNext(); ) {	    		    	
 	    	PaperNode pNode = iter.next().getValue();
 	    	pNode.id = String.valueOf(id);
-	    	//infoMap cannot read nodeNames longer than 510 characters, some paper titles are too long!!!
-	    	if (pNode.title.length() > 480)
-	    		title = pNode.title.substring(0, 479) + "...";
+	    	//infoMap cannot read nodeNames longer than 500 characters, some paper titles and journal titles are too long!!!
+	    	if (pNode.title.length() > 300)
+	    		title = pNode.title.substring(0, 299) + "..";
 	    	else
 	    		title = pNode.title;
 	    	
-	    	out.write(pNode.id+" \""+title+" || "+pNode.pubmed_id+" || "+ ((pNode.pubDate.length()>4) ? pNode.pubDate.substring(0, 4) : pNode.pubDate) +" || "+pNode.fullJournalName+" || "+pNode.nlmUniqueID + "\""); out.newLine();
+	    	if (pNode.fullJournalName.length() > 100)
+	    		journalName = pNode.fullJournalName.substring(0, 99) + "..";
+	    	else
+	    		journalName = pNode.fullJournalName;
+	    	
+	    	out.write(pNode.id+" \""+title+" || "+pNode.pubmed_id+" || "+ ((pNode.pubDate.length()>4) ? pNode.pubDate.substring(0, 4) : pNode.pubDate) +" || "+journalName+" || "+pNode.nlmUniqueID + "\""); out.newLine();
 	    	numLinks = numLinks + pNode.outLinks.size();	    
 	    	id++;
 	    }
@@ -341,12 +323,19 @@ public class ConstructNetwork {
 		int numLinks = 0;
 
 	    BufferedWriter out = new BufferedWriter(new FileWriter(new File(outFileName)));
-        out.write("*Vertices " + numNodes); out.newLine();       
+        out.write("*Vertices " + numNodes); out.newLine();       String journalName = "";
         int id = 1; //we generate id starting from 1, sequentially increasing, because infoMap needs this.
 	    for (Iterator<Map.Entry<String, JournalNode>> iter = journalNetworkMap.entrySet().iterator(); iter.hasNext(); ) {	    		    	
 	    	JournalNode jNode = iter.next().getValue();
 	    	jNode.id = String.valueOf(id);
-	    	out.write(jNode.id + " \"" + jNode.fullJournalName + " || " +jNode.nlmUniqueID + "\""); out.newLine();
+	    	
+	    	//infoMap cannot read nodeNames longer than 500 characters, some journal names are too long!!!
+	    	if (jNode.fullJournalName.length() > 400)
+	    		journalName = jNode.fullJournalName.substring(0, 399) + "..";
+	    	else
+	    		journalName = jNode.fullJournalName;
+	    	
+	    	out.write(jNode.id + " \"" + journalName + " || " +jNode.nlmUniqueID + "\""); out.newLine();
 	    	numLinks = numLinks + jNode.outLinks.size();
 	    	id++;
 	    }

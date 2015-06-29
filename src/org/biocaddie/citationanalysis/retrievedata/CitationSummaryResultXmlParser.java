@@ -6,7 +6,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
 
@@ -26,19 +25,30 @@ import javax.xml.parsers.SAXParserFactory;
 public class CitationSummaryResultXmlParser extends DefaultHandler{
     final static DateFormat dateFormat = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
     public List<DocSum> docSumList;
-    String docSumXmlFileName;
+    static String docSumXmlFileName;
     StringBuilder tmpValue = new StringBuilder();
     DocSum docSumTmp = new DocSum();	
     String currentItemAttributeValue;
     String sep = " || ";
-    BufferedWriter out;
+    private static BufferedWriter out;
 	
     public CitationSummaryResultXmlParser(String docSumXmlFileName) throws Exception {
         this.docSumXmlFileName = docSumXmlFileName;
-        //docSumList = new ArrayList<DocSum>();
         parseDocument();
     }
 
+	public static void main(String[] args) throws Exception {
+
+		if(args.length != 1){
+    		System.out.println("Call: java org.biocaddie.citationanalysis.retrievedata.CitationSummaryResultXmlParser <all_citations_summary.xml>");
+    		System.exit(1);
+    	}
+		
+		String fileNameFullPath = args[0];		
+		CitationSummaryResultXmlParser citationSummaryResultXML = new CitationSummaryResultXmlParser(fileNameFullPath);		
+		
+	}
+	
     private void parseDocument() throws Exception{
     	SAXParserFactory factory = SAXParserFactory.newInstance();
         SAXParser parser = factory.newSAXParser();
@@ -62,7 +72,6 @@ public class CitationSummaryResultXmlParser extends DefaultHandler{
     public void startElement(String s, String s1, String elementName, Attributes attributes) throws SAXException {
         // new DocSum
         if (elementName.equalsIgnoreCase("DocSum")) {
-        	//docSumTmp = new DocSum();
         	docSumTmp.clear();
         	currentItemAttributeValue="";
         	tmpValue.setLength(0);
@@ -79,7 +88,6 @@ public class CitationSummaryResultXmlParser extends DefaultHandler{
     public void endElement(String s, String s1, String element) throws SAXException {    	
     	// if end of docSum element add to list
     	if (element.equals("DocSum")) {
-    		//docSumList.add(docSumTmp);
 	        try {
 				out.write(docSumTmp.getId() + sep + docSumTmp.getTitle() + sep + docSumTmp.getPubDate().substring(0,4) + sep + docSumTmp.getFullJournalName() + sep + docSumTmp.getNlmUniqueID() + sep + docSumTmp.getLastAuthor());
 		        out.newLine();           		

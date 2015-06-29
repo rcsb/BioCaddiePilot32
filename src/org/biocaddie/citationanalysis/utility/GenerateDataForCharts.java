@@ -24,8 +24,8 @@ import java.util.regex.Pattern;
 
 
 /**
- * This is a utility class to generate charts for various purposes as explained within the methods.
- * It is not intended to use from command line. 
+ * This is a utility class to generate data for charts for various purposes as explained within the methods.
+ * It is not intended to use from command line. But can be modified later.
  */
 public class GenerateDataForCharts {
 	final static Charset ENCODING = StandardCharsets.UTF_8;
@@ -38,67 +38,65 @@ public class GenerateDataForCharts {
 	 */
 	public static void main(String[] args) throws Exception {
 
-//		convertPaperCitationNetwork();
-	//	sortAndFindTop10PapersOrPDBIds();
+		// "/Users/ali/Documents/BioCaddie/data/citation/april_29/cites_refs/paper_citation_network.net"
+		// "/Users/ali/Documents/BioCaddie/data/citation/april_29/cites_refs/paper_citation_network_metrics_d_0.5.txt"
+		// "/Users/ali/Documents/BioCaddie/data/citation/april_29/cites_refs/PdbId_PubMedId_April29.csv"
+		if(args.length < 6){
+    		System.out.println("Call: java org.biocaddie.citationanalysis.utility.GenerateDataForCharts <paperOrPdb> <pageRankorCiteCnt> <top100orOutliers> <network> <networkMetrics> <PdbIdPubMedId>");
+    		System.out.println("<paperOrPdb>: 1:sort all papers  2: sort only PDB primary citations");
+    		System.out.println("<pageRankorCiteCnt>: 1:use pageRank  2: use CiteCount");
+    		System.out.println("<top100orOutliers>: 1:top100  2: outliers within top100");
+    		System.exit(1);
+    	}
+		
+		int paperOrPdb = Integer.valueOf(args[0]).intValue();        // 1:sort all papers  2: sort only PDB primary citations
+		int pageRankorCiteCnt = Integer.valueOf(args[1]).intValue(); //1:use pageRank  2: use CiteCount
+		int top100orOutliers = Integer.valueOf(args[2]).intValue();  //1:top100  2: outliers within top100
+		String networkPath = args[3];
+		String networkMetricsPath = args[4];
+		String pdbIdPubMedIdPath =  args[5];
+		
+		sortAndFindTop100PapersOrPDBIds(paperOrPdb, pageRankorCiteCnt, top100orOutliers, networkPath, networkMetricsPath, pdbIdPubMedIdPath);
 
 	//	generateChartForDumpingFactor();
-	//	CitationSummaryResultXmlParser citationSummaryResultXML = new CitationSummaryResultXmlParser("/Users/ali/Documents/BioCaddie/data/citation/april_29/whole_pubmed/all_citations_summary.xml");		
 
-/*		CitationAndRefLinkResultXmlParser citationAndRefLink = new CitationAndRefLinkResultXmlParser("/Users/ali/Documents/BioCaddie/data/citation/april_29/cites_refs/all_citations.xml");			
-		System.out.println(citationAndRefLink.linkSetList.size());
-		//		CitationAndRefLinkResultXmlParser citationAndRefLink = new CitationAndRefLinkResultXmlParser("/Users/ali/Documents/BioCaddie/data/citation/april_29/whole_pubmed/all_citations.xml");
-	    int cnt = 0; int cntRef = 0; int cntCite = 0;
-	    int inCiteButNotRef = 0; int inRefButNotCite = 0;  int citeNotExist = 0; int refNotExist = 0;
-	    int noCite = 0; int noRef = 0; int noCitenoRef = 0;
-	    for (Iterator<Map.Entry<Integer, LinkSetShort>> iter = citationAndRefLink.linkSetList.entrySet().iterator(); iter.hasNext(); ) {	    		    	
-	    	LinkSetShort l = iter.next().getValue();	    
-	    	cntCite += l.inLinks.size();
-	    	cntRef += l.outLinks.size();
-	    	cnt++;	    	
-	    	
-	    	if (l.inLinks.size() == 0) noCite++;
-	    	if (l.outLinks.size() == 0) noRef++;
-	    	if (l.inLinks.size() == 0 && l.outLinks.size() == 0) noCitenoRef++;
+		/*	This code generates chart for citations per year
+		 * Map<String, YearCitations> years_map = new HashMap<String, YearCitations>(); // (key: nodeId value: count)
+		for (Iterator<Map.Entry<Integer, Node>> iter = network.nodeMap.entrySet().iterator(); iter.hasNext(); ) {	
+			Node n = iter.next().getValue();
+			String pubYear = n.name;
+			Double citeCount = Double.valueOf(n.inLinks.size());
+		    if (years_map.containsKey(n.name)){  	
+		    	YearCitations yearCitations = years_map.get(pubYear);
+		    	yearCitations.totalCitationCount += citeCount ;
+	    		yearCitations.numOfPapers++;
+		    	if (n.inLinks.size()==0 && n.outLinks.size()==0)
+		    		yearCitations.numOfDanglingPapers++;		    	
+		    }else{
+		    	if (n.inLinks.size()==0 && n.outLinks.size()==0)
+		    		years_map.put(pubYear, new YearCitations(pubYear, citeCount, 1.0, 1.0));
+		    	else
+		    		years_map.put(pubYear, new YearCitations(pubYear, citeCount, 1.0, 0.0));		    				    	
+		    }		    
+		}
+		
+	    Map<String, YearCitations> sorted_years_map = new TreeMap<String, YearCitations>(years_map);
+	    years_map = sorted_years_map;
+	    double numOfYears = years_map.size();
 
-	    	
-		    for (Iterator<Map.Entry<Integer, Integer>> iterInLinks = l.inLinks.entrySet().iterator(); iterInLinks.hasNext(); ) {	    		    	
-		    	Integer key = iterInLinks.next().getKey();
-		    	LinkSetShort l2 = citationAndRefLink.linkSetList.get(key);
-		    	if (l2 == null){
-		    		citeNotExist++; 	
-		    		System.out.println("citeNotExist " +l.id +" " +key);		    		
-		    		continue;
-		    	}		    		
-		    	if (!l2.outLinks.containsKey(l.id)){
-		    		inCiteButNotRef++;		 
-		    		System.out.println("inCiteButNotRef " +l.id +" " + l2.id);
-		    	}
-		    }		    	
+	    for (Iterator<Map.Entry<String, YearCitations>> iter = years_map.entrySet().iterator(); iter.hasNext(); ) {	    		
+	    	YearCitations yearCitations = iter.next().getValue();
 
-		    for (Iterator<Map.Entry<Integer, Integer>> iterOutLinks = l.outLinks.entrySet().iterator(); iterOutLinks.hasNext(); ) {	   
-		    	Integer key = iterOutLinks.next().getKey();
-		    	LinkSetShort l2 = citationAndRefLink.linkSetList.get(key);
-		    	if (l2 == null){
-		    		refNotExist++; 	
-		    		System.out.println("refNotExist " +l.id +" " + key);		    				    		
-		    		continue;
-		    	}			    	
-		    	if (!l2.inLinks.containsKey(l.id)){
-		    		inRefButNotCite++;		 
-		    		System.out.println("inRefButNotCite " +l.id +" " + l2.id);
-		    	}
-		    } 		    	
-		    
-	    }	    
-	    System.out.println(citationAndRefLink.linkSetList.size()  + " " + cnt + " " + cntCite + " " + cntRef);
-	    System.out.println(citeNotExist  + " " + refNotExist);
-	    System.out.println(inCiteButNotRef  + " " + inRefButNotCite);
-	    System.out.println(noCite  + " " + noRef + " " + noCitenoRef);
-*/
+	    	//System.out.println(yearCitations.year + "|" + yearCitations.totalCitationCount + "|"+ yearCitations.numOfPapers + "|"+ yearCitations.totalPageRank);
+	    	System.out.println(yearCitations.year +"|" +yearCitations.numOfPapers.intValue() + "|" + yearCitations.totalCitationCount + "|" + yearCitations.numOfDanglingPapers);
+	    }
+	    */		
+
+//		lightPaperCitationNetwork();
 	}
 
 	//paper_citation_network is too large 3.7GB probably because of nodeNames (title, journalName etc.) we put only PubMedId as nodeName 
-	private static void convertPaperCitationNetwork() throws Exception{
+	private static void lightPaperCitationNetwork() throws Exception{
 		
 	    BufferedWriter out = new BufferedWriter(new FileWriter(new File("/Users/ali/Documents/BioCaddie/data/citation/april_29/cites_refs/paper_citation_network_gt10_light.net")));
 
@@ -143,13 +141,20 @@ public class GenerateDataForCharts {
         out.close();   
 	}
 	
-	private static void sortAndFindTop10PapersOrPDBIds() throws Exception {
+	/**
+	 * 
+	 * @param paperOrPDB: 1:sort all papers  2: sort only PDB primary citations
+	 * @param pageRankOrCiteCnt: 1:use pageRank  2: use CiteCount
+	 * @param top100orOutliers: 1:top100  2: outliers within top100
+	 * @throws Exception
+	 */
+	private static void sortAndFindTop100PapersOrPDBIds(int paperOrPDB, int pageRankOrCiteCnt, int top100orOutliers, String networkPath, String networkMetricsPath, String pdbIdPubMedIdPath) throws Exception {
 		
 		System.out.println("Start Time: " + dateFormat.format(new Date()));
 		String line;
 
 		Map<Integer, String> pubmed_id_map = new HashMap<Integer, String>(); //unique pubMed Id's (key: pubMedId value: count)		
-    	BufferedReader reader3 = Files.newBufferedReader(Paths.get("/Users/ali/Documents/BioCaddie/data/citation/april_29/cites_refs/PdbId_PubMedId_April29.csv"), ENCODING);
+    	BufferedReader reader3 = Files.newBufferedReader(Paths.get(pdbIdPubMedIdPath), ENCODING);
     	line = null;
 		while ((line = reader3.readLine()) != null) {			
 			//skip the header line and any empty lines
@@ -171,14 +176,13 @@ public class GenerateDataForCharts {
 		   		pubmed_id_map.put(pubmed_id, pdb_id);
 		   	}	
 		}	
-		
-		
+				
 		List<NodeSort> nodeList = new ArrayList<NodeSort>();
 		List<NodeSort> nodeListPDB = new ArrayList<NodeSort>();
 
 		Map<Integer, String> paperNetworkMap = new HashMap<Integer, String>();
-	    BufferedReader reader2 = Files.newBufferedReader(Paths.get("/Users/ali/Documents/BioCaddie/data/citation/april_29/cites_refs/paper_citation_network.net"), ENCODING);
-		line = null;  int lineCnt = 0;
+	    BufferedReader reader2 = Files.newBufferedReader(Paths.get(networkPath), ENCODING);
+		line = null;  
 	    while ((line = reader2.readLine()) != null) {	    	
 	    	line = line.trim();
 	    	if (line.equals("")) //skip the empty lines, if there is any
@@ -194,14 +198,11 @@ public class GenerateDataForCharts {
     	    Integer id = Integer.valueOf(line.substring(0, nameStart-1));
     	    String name = line.substring(nameStart+1, nameEnd);
     	    paperNetworkMap.put(id, name);
-    	    lineCnt++;
-    		//String[] tokens = name.split(Pattern.quote("||"));
-    		//String a = tokens[0];
 	    }	    
-	    System.out.println(lineCnt + " " + paperNetworkMap.size());
+	    System.out.println("Network size: " + paperNetworkMap.size());
 	    
 		//Read the network metrics file, list the top 10 by pageRank
-	    BufferedReader reader = Files.newBufferedReader(Paths.get("/Users/ali/Documents/BioCaddie/data/citation/april_29/cites_refs/paper_citation_network_metrics(d=0.5).txt"), ENCODING);
+	    BufferedReader reader = Files.newBufferedReader(Paths.get(networkMetricsPath), ENCODING);
 		line = null; 
 	    while ((line = reader.readLine()) != null) {
 	    	//skip the header line and any empty lines
@@ -218,35 +219,57 @@ public class GenerateDataForCharts {
 			if (pubmed_id_map.containsKey(pubmed_id)){
 				NodeSort nSort2 = new NodeSort(Integer.valueOf(tokens[0].trim()), Integer.valueOf(tokens[1].trim()), Double.valueOf(tokens[3].trim()));
 				nSort2.name = pubmed_id_map.get(pubmed_id);
-				nodeListPDB.add(nSort2);
-				
+				nodeListPDB.add(nSort2);				
 			}
 	    }
 
-	/*    Collections.sort(nodeList, NodeSort.COMPARE_BY_CITECNT);
-	    for (int i = 0; i < nodeList.size(); i++)
-	    	nodeList.get(i).citeCntOrder = i+1;
+	    if (paperOrPDB == 1){//sort papers
 	    
-	    Collections.sort(nodeList, NodeSort.COMPARE_BY_PAGERANK);
-	    for (int i = 0; i < nodeList.size(); i++)
-	    	nodeList.get(i).pageRankOrder = i+1;
-	    	
-	    Collections.sort(nodeList, NodeSort.COMPARE_BY_PAGERANK);	    	
-	    for (int i = 0; i < 10; i++){
-	    	//if (nodeList.get(i).citeCntOrder / nodeList.get(i).pageRankOrder >= 5)
-	    		System.out.println(nodeList.get(i).pageRankOrder + "|" +nodeList.get(i).pageRank + "|" + nodeList.get(i).citeCntOrder + "|" + nodeList.get(i).citeCnt + "|" + nodeList.get(i).id + "|" + paperNetworkMap.get(nodeList.get(i).id) ); 
+		    Collections.sort(nodeList, NodeSort.COMPARE_BY_CITECNT);
+		    for (int i = 0; i < nodeList.size(); i++)
+		    	nodeList.get(i).citeCntOrder = i+1;
+		    
+		    Collections.sort(nodeList, NodeSort.COMPARE_BY_PAGERANK);
+		    for (int i = 0; i < nodeList.size(); i++)
+		    	nodeList.get(i).pageRankOrder = i+1;
+	
+		    if (pageRankOrCiteCnt == 1)
+		    	Collections.sort(nodeList, NodeSort.COMPARE_BY_PAGERANK);
+		    else if (pageRankOrCiteCnt == 2)
+		    	Collections.sort(nodeList, NodeSort.COMPARE_BY_CITECNT);
+		    	
+		    Collections.sort(nodeList, NodeSort.COMPARE_BY_PAGERANK);	    	
+		    for (int i = 0; i < 100; i++){
+		    	System.out.println("pageRankOrder | pageRankValue | citeCountOrder | citeCount | paperId | paperTitleIdYearJournal");
+		    	if (top100orOutliers == 2 && nodeList.get(i).citeCntOrder / nodeList.get(i).pageRankOrder >= 5) //if outliers
+		    		System.out.println(nodeList.get(i).pageRankOrder + "|" +nodeList.get(i).pageRank + "|" + nodeList.get(i).citeCntOrder + "|" + nodeList.get(i).citeCnt + "|" + nodeList.get(i).id + "|" + paperNetworkMap.get(nodeList.get(i).id) );
+		    	else
+		    		System.out.println(nodeList.get(i).pageRankOrder + "|" +nodeList.get(i).pageRank + "|" + nodeList.get(i).citeCntOrder + "|" + nodeList.get(i).citeCnt + "|" + nodeList.get(i).id + "|" + paperNetworkMap.get(nodeList.get(i).id) );
+		    }
+		    
+	    }else if (paperOrPDB == 2){ //sort PDB
+
+		    Collections.sort(nodeListPDB, NodeSort.COMPARE_BY_CITECNT);
+		    for (int i = 0; i < nodeListPDB.size(); i++)
+		    	nodeListPDB.get(i).citeCntOrder = i+1;
+		    
+		    Collections.sort(nodeListPDB, NodeSort.COMPARE_BY_PAGERANK);
+		    for (int i = 0; i < nodeListPDB.size(); i++)
+		    	nodeListPDB.get(i).pageRankOrder = i+1;
+	
+		    if (pageRankOrCiteCnt == 1)
+		    	Collections.sort(nodeListPDB, NodeSort.COMPARE_BY_PAGERANK);
+		    else if (pageRankOrCiteCnt == 2)
+		    	Collections.sort(nodeListPDB, NodeSort.COMPARE_BY_CITECNT);
+	
+		    for (int i = 0; i < 100; i++){
+		    	System.out.println("pageRankOrder | pageRankValue | citeCountOrder | citeCount | PDB id | paperTitleIdYearJournal");
+		    	if (top100orOutliers == 2 && nodeListPDB.get(i).citeCntOrder / nodeListPDB.get(i).pageRankOrder >= 5) //list outliers
+		    		System.out.println(nodeListPDB.get(i).pageRankOrder + "|" + nodeListPDB.get(i).pageRank + "|" + nodeListPDB.get(i).citeCntOrder + "|" + nodeListPDB.get(i).citeCnt + "|" + nodeListPDB.get(i).name + "|"+paperNetworkMap.get(nodeListPDB.get(i).id));
+		    	else
+		    		System.out.println(nodeListPDB.get(i).pageRankOrder + "|" + nodeListPDB.get(i).pageRank + "|" + nodeListPDB.get(i).citeCntOrder + "|" + nodeListPDB.get(i).citeCnt + "|" + nodeListPDB.get(i).name + "|"+paperNetworkMap.get(nodeListPDB.get(i).id));		    		
+		    }
 	    }
-*/
-
-	    Collections.sort(nodeListPDB, NodeSort.COMPARE_BY_CITECNT);
-	    for (int i = 0; i < nodeListPDB.size(); i++)
-	    	nodeListPDB.get(i).citeCntOrder = i+1;
-	    
-	    Collections.sort(nodeListPDB, NodeSort.COMPARE_BY_PAGERANK);
-	    for (int i = 0; i < nodeListPDB.size(); i++)
-	    	nodeListPDB.get(i).pageRankOrder = i+1;
-
-	  //  Collections.sort(nodeListPDB, NodeSort.COMPARE_BY_CITECNT);
 
 	 /*   DrugTargetCorrelation drug =new DrugTargetCorrelation();
 	    Map<String, Map<String, Integer>> pdb_drug_map = drug.readPDBDrugTargetCSVFile();
@@ -257,8 +280,7 @@ public class GenerateDataForCharts {
     		pdb_drug_map_temp.put(entry.getKey(), "");
     	}	    
 	   */ 
-	    for (int i = 0; i < 100; i++){
-	    	System.out.println(nodeListPDB.get(i).pageRankOrder + "|" + nodeListPDB.get(i).pageRank + "|" + nodeListPDB.get(i).citeCntOrder + "|" + nodeListPDB.get(i).citeCnt + "|" + nodeListPDB.get(i).name + "|"+paperNetworkMap.get(nodeListPDB.get(i).id));
+	    
 	//    	if (nodeListPDB.get(i).citeCntOrder / nodeListPDB.get(i).pageRankOrder >= 5)
 //	    for (int i = 0; i < nodeListPDB.size(); i++){
 	    	//String[] tokens = nodeListPDB.get(i).name.split(Pattern.quote("|"));
@@ -267,8 +289,7 @@ public class GenerateDataForCharts {
 //	    			System.out.println(pdb_drug_map.get(tokens[j]) + "|" + tokens[j] + "|" + nodeListPDB.get(i).pageRankOrder + "|" +nodeListPDB.get(i).pageRank + "|" + nodeListPDB.get(i).citeCntOrder + "|" + nodeListPDB.get(i).citeCnt + "|" + nodeListPDB.get(i).id + "|" + nodeListPDB.get(i).name + "|"+ paperNetworkMap.get(nodeListPDB.get(i).id) );     
 	    //			pdb_drug_map_temp.put(tokens[j], nodeListPDB.get(i).pageRankOrder + "|" +nodeListPDB.get(i).pageRank + "|" + nodeListPDB.get(i).citeCntOrder + "|" + nodeListPDB.get(i).citeCnt + "|" + nodeListPDB.get(i).id + "|"+ paperNetworkMap.get(nodeListPDB.get(i).id) );
 	  //  		}
-	    //	}
-	    }
+	    //	}	    
 	    
 /*    	for (Iterator<Map.Entry<String, Map<String, Integer>>> iter = pdb_drug_map.entrySet().iterator(); iter.hasNext(); ) 	{
     		Map.Entry<String, Map<String, Integer>> entry = iter.next();
@@ -348,7 +369,7 @@ public class GenerateDataForCharts {
 		    	yearCitations.totalPageRank += pageRank;
 		    	yearCitations.numOfPapers++;
 		    }else{		    	
-		    	years_map.put(pubYear, new YearCitations(pubYear, citeCount, pageRank, 1.0));
+		    	years_map.put(pubYear, new YearCitations(pubYear, citeCount, pageRank, 1.0, 0.0));
 		    }		    
 	    }
 	    
@@ -378,13 +399,15 @@ class YearCitations {
 	Double totalCitationCount;
 	Double totalPageRank;
 	Double numOfPapers;
+	Double numOfDanglingPapers;	
 	   
 	YearCitations(){ }
-	YearCitations(String p_year, Double p_totalCitationCount, Double p_totalPageRank, Double p_numOfPapers){
+	YearCitations(String p_year, Double p_totalCitationCount, Double p_totalPageRank, Double p_numOfPapers, Double p_numOfDanglingPapers){
 		year = p_year;
 		totalCitationCount = p_totalCitationCount;
 		totalPageRank = p_totalPageRank;
 		numOfPapers = p_numOfPapers;
+		numOfDanglingPapers = p_numOfDanglingPapers;		
     }
 }
 
@@ -399,7 +422,6 @@ class NodeSort{
 	Double pageRank;
 	Integer pageRankOrder;
 
-	
 	NodeSort(){}
 	NodeSort(Integer p_id, Integer p_citeCnt, Double p_pageRank){
 		id = p_id;

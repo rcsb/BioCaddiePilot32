@@ -14,7 +14,7 @@ public class DrugTargetCorrelation {
 
 	public static void main(String[] args) throws Exception {
 		
-		//Step 1: Read PDB csv file, and generate a map of (GenericName <-> PDB Id) where similarity >= 90
+		//Step 1: Read PDB Drug Target csv file, and generate a map of (GenericName <-> PDB Id) where similarity >= 90
 		readPDBDrugTargetCSVFile();
 		
 	}
