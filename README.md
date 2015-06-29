@@ -66,7 +66,7 @@ $ java org.biocaddie.citationanalysis.network.NetworkUtils 3 /Users/ali/Document
 
 PART 3: NETWORK METRICS: For a given network in Pajek.net format, compute three types of metrics for each node: inDegree centrality(citation count), pageRank and betweenness centrality.
 
-Call: java org.biocaddie.citationanalysis.network.NetworkMeasuresMetrics <flag> <network.net> <optional pageRankDampingFactor, default:0.5>
+Call: java org.biocaddie.citationanalysis.network.NetworkMeasuresMetrics [flag] [network.net] [optional pageRankDampingFactor, default:0.5]
 
 flag values= 1:pageRank 2:betweenness, 12: both pageRank and betweenness
 
