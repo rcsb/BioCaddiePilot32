@@ -116,19 +116,19 @@ $ ./conf-infomap 765677 /Users/ali/Documents/BioCaddie/data/citation/june_27/200
 
 Then upload the .map files of all these three networks into MapGenerator and visualize the change in the mapping using the Alluvial Generator. http://www.mapequation.org/apps/MapGenerator.html
 
-4.3: We can also run the infoMap on the full journal network, after cleaning the data (removing major interdisciplinar journals, excluding self-journal citations, excluding journals with citations < n) By the way, conf-infoMap is not good only for temporal analysis, it may be better to find significant clustering of any (un)directed network than the classic infoMap.
+4.3: We can also run the infoMap on the full journal network, after cleaning the data (removing major interdisciplinar journals, excluding self-journal citations, excluding journals with citations less than n) By the way, conf-infoMap is not good only for temporal analysis, it may be better to find significant clustering of any (un)directed network than the classic infoMap.
 
 PART 5: UTILITIES: I couldn't have time to make all functions runnable from command-line, but
 
 GenerateDataForCharts.java class includes code for the following purposes:  
 
-Call: java org.biocaddie.citationanalysis.utility.GenerateDataForCharts <paperOrPdb> <pageRankorCiteCnt> <top100orOutliers> <network> <networkMetrics> <PdbIdPubMedId>
+Call: java org.biocaddie.citationanalysis.utility.GenerateDataForCharts [paperOrPdb] [pageRankorCiteCnt] [top100orOutliers] [network] [networkMetrics] [PdbIdPubMedId]
 
-<paperOrPdb>: 1:sort all papers  2: sort only PDB primary citations
+[paperOrPdb]: 1:sort all papers  2: sort only PDB primary citations
 
-<pageRankorCiteCnt>: 1:use pageRank  2: use CiteCount
+[pageRankorCiteCnt]: 1:use pageRank  2: use CiteCount
 
-<top100orOutliers>: 1:top100  2: outliers within top100
+[top100orOutliers]: 1:top100  2: outliers within top100
 
 $ java org.biocaddie.citationanalysis.utility.GenerateDataForCharts 1 1 1 paper_citation_network.net paper_citation_network_metrics_d_0.5_.txt PdbId_PubMedId_April29.csv
 
@@ -136,13 +136,13 @@ $ java org.biocaddie.citationanalysis.utility.GenerateDataForCharts 1 1 1 paper_
 
 - Read the network metrics file and list the top-100 PDBs   (according to PageRank or CiteRank)
 
-- Read the network metrics file and list the outliers within the top-100 (citeRank/pageRank >=5)
+- Read the network metrics file and list the outliers within the top-100 (citeRank/pageRank greater than 5)
 
 - Read the network metrics file and generate chart data for average citeCount & pageRank per year
 
 DrugTargetCorrelation.java class includes code for the following purposes:
 
-- Read the PDB drug target table and sort them according to the pageRank or citeRank of the primary citation. Here is the relation: Generic Name -> PDB ID -> Primary Citation
+- Read the PDB drug target table and sort them according to the pageRank or citeRank of the primary citation. Here is the relation: Generic Name - PDB ID - Primary Citation
 
 
 
