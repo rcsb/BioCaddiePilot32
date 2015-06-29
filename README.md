@@ -18,8 +18,7 @@ PART 1: DATA RETRIEVAL: We can retrieve data in two ways by using the flag (0:ci
 
 1.1: Starting from Pdb primary citations, we can first retrieve all citation+reference cascades then we can retrieve the summary of all retrieved pubmed ids. Order is important.
 
-$ java org.biocaddie.citationanalysis.retrievedata.RetrieveCitationFromEutils 0 PdbId_PubmedId_Jun27.csv 
-
+$ java org.biocaddie.citationanalysis.retrievedata.RetrieveCitationFromEutils 0 PdbId_PubmedId_Jun27.csv <br>
 $ java org.biocaddie.citationanalysis.retrievedata.RetrieveSummaryFromEutils 0 all_pubmed_id.txt 
 
 1.2: We can retrieve the whole pubmed, by first retrieving the summary of all valid pubmed ids between 1 and n(26M), then retrieving the citations for all retrieved pubmed ids. Order is important.
