@@ -25,7 +25,8 @@ $ java org.biocaddie.citationanalysis.retrievedata.RetrieveSummaryFromEutils 1 2
 $ java org.biocaddie.citationanalysis.retrievedata.RetrieveCitationFromEutils 1 whole_pubmed/all_pubmed_id.txt 
 
 
-PART 2: NETWORK CONSTRUCTION: We construct the network using the two retrieved XML files: all_citations.xml and all_citations_summary.xml. <br>
+PART 2: NETWORK CONSTRUCTION: We construct the network using the two retrieved XML files: all_citations.xml and all_citations_summary.xml. 
+
 2.1: These XML files are too large (10GB and 25GB), in order to prevent memory problems, first we parse these XML files and write our needed fields into smaller (1.5GB and 2GB) txt files: all_citations.txt and all_citations_summary.txt. Order is not important. <br>
 $ java org.biocaddie.citationanalysis.retrievedata.CitationSummaryResultXmlParser all_citations_summary.xml <br>
 $ java org.biocaddie.citationanalysis.retrievedata.CitationAndRefLinkResultXmlParser all_citations.xml 
@@ -48,13 +49,14 @@ $ java org.biocaddie.citationanalysis.network.NetworkUtils 2 2014_2012_journal_c
 2.6: Print network summary (global properties) of a given network  (flag = 3): <br>
 $ java org.biocaddie.citationanalysis.network.NetworkUtils 3 2008_2006_journal_citation_network.net
 
-PART 3: NETWORK METRICS: For a given network in Pajek.net format, compute three types of metrics for each node: inDegree centrality(citation count), pageRank and betweenness centrality. <br>
+PART 3: NETWORK METRICS: For a given network in Pajek.net format, compute three types of metrics for each node: inDegree centrality(citation count), pageRank and betweenness centrality. 
 
 Call: java org.biocaddie.citationanalysis.network.NetworkMeasuresMetrics [flag] [network.net] [optional pageRankDampingFactor, default:0.5] <br>
 flag values= 1:pageRank 2:betweenness, 12: both pageRank and betweenness <br>
 $ java -Xmx28000m org.biocaddie.citationanalysis.network.NetworkMeasuresMetrics 1 2014_2012_paper_citation_network.net 0.5
 
-PART 4: COMMUNITY DETECTION : We analyze the community structure using InfoMap. Download InfoMap from http://www.mapequation.org/code.html and install it using make. <br>
+PART 4: COMMUNITY DETECTION : We analyze the community structure using InfoMap. Download InfoMap from http://www.mapequation.org/code.html and install it using make. 
+
 4.1: Run infoMap for the paper co-citation network in an undirected manner with N=5 attemps. N=5 number of attemps is important. Since infoMap algorithm is heuristic, for example if you run with N=1, most probably you cannot find optimum or best clustering. Run it with at least N=5, if you have time run it with N=10. <br>
 $ ./Infomap 2014_2012_paper_citation_network_cocitation.net output_directory/ --hard-partitions --tree --bftree --map --undirected --seed 5234535 -N 5 -vvv
 
