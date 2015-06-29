@@ -78,7 +78,7 @@ Then upload the .map files of all these three networks into MapGenerator and vis
 
 4.3: We can also run the infoMap on the full journal network, after cleaning the data (removing major interdisciplinar journals, excluding self-journal citations, excluding journals with citations less than n) By the way, conf-infoMap is not good only for temporal analysis, it may be better to find significant clustering of any (un)directed network than the classic infoMap.
 
-PART 5: UTILITIES: I couldn't have time to make all functions runnable from command-line, but
+PART 5: UTILITIES: Not all functions runnable from command-line, but
 
 GenerateDataForCharts.java class includes code for the following purposes:  
 
