@@ -15,18 +15,26 @@ Collaborator: Cathy Wu, Ph.D. and Cecilia Arighi, Ph.D. (non funded)
 This Readme file explains the usage of programs:
 
 PART 1: DATA RETRIEVAL: We can retrieve data in two ways by using the flag (0:cite+ref cascades 1:whole_pubmed):
+
 1.1: Starting from Pdb primary citations, we can first retrieve all citation+reference cascades then we can retrieve the summary of all retrieved pubmed ids. Order is important.
+
 $ java org.biocaddie.citationanalysis.retrievedata.RetrieveCitationFromEutils 0 /Users/ali/Documents/BioCaddie/data/citation/june_27/PdbId_PubmedId_Jun27.csv 
+
 $ java org.biocaddie.citationanalysis.retrievedata.RetrieveSummaryFromEutils 0 /Users/ali/Documents/BioCaddie/data/citation/june_27/all_pubmed_id.txt 
 
 1.2: We can retrieve the whole pubmed, by first retrieving the summary of all valid pubmed ids between 1 and n(26M), then retrieving the citations for all retrieved pubmed ids. Order is important.
+
 $ java org.biocaddie.citationanalysis.retrievedata.RetrieveSummaryFromEutils 1 26000000 /Users/ali/Documents/BioCaddie/data/citation/june_27/whole_pubmed/ 
+
 $ java org.biocaddie.citationanalysis.retrievedata.RetrieveCitationFromEutils 1 /Users/ali/Documents/BioCaddie/data/citation/june_27/whole_pubmed/all_pubmed_id.txt 
 
 
 PART 2: NETWORK CONSTRUCTION: We construct the network using the two retrieved XML files: all_citations.xml and all_citations_summary.xml.
+
 2.1: These XML files are too large (10GB and 25GB), in order to prevent memory problems, first we parse these XML files and write our needed fields into smaller (1.5GB and 2GB) txt files: all_citations.txt and all_citations_summary.txt. Order is not important.
+
 $ java org.biocaddie.citationanalysis.retrievedata.CitationSummaryResultXmlParser /Users/ali/Documents/BioCaddie/data/citation/june_27/all_citations_summary.xml 
+
 $ java org.biocaddie.citationanalysis.retrievedata.CitationAndRefLinkResultXmlParser /Users/ali/Documents/BioCaddie/data/citation/june_27/all_citations.xml 
 
 2.2: We construct the paper citation networks and journal citation networks using these two txt files: all_citations.txt and all_citations_summary.txt
