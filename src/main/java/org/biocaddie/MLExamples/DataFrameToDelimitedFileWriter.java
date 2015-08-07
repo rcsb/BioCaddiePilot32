@@ -65,7 +65,6 @@ public class DataFrameToDelimitedFileWriter {
 				} else {
 					sb.append(r.getAs(i).toString());
 				}
-				// need to have special print statement for nulls
 				if (i < r.length()-1) {
 					sb.append(delimiter);
 				}
