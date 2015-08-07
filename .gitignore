@@ -13,3 +13,4 @@ hs_err_pid*
 
 # No Mac files
 .DS_Store
+/target/

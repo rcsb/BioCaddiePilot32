@@ -1,0 +1,84 @@
+package org.biocaddie.DataConverters;
+
+
+
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.zip.GZIPInputStream;
+
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry;
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream;
+
+import scala.Tuple2;
+
+public class TarFileReader {
+	private static final int BUFFER_SIZE = 65536;
+	private String fileName;
+	private int batchSize;
+	private int count;
+	private GZIPInputStream stream;
+	private TarArchiveInputStream tar;
+	private TarArchiveEntry entry = null;
+	
+	public TarFileReader(String fileName, int batchSize) throws FileNotFoundException, IOException {
+		this.fileName = fileName;
+		this.batchSize = batchSize;
+		this.count = 1;
+		stream = new GZIPInputStream(new FileInputStream(fileName), BUFFER_SIZE);
+		tar = new TarArchiveInputStream(stream);
+	}
+
+	public String getFileName() {
+		return fileName;
+	}
+
+	public int getBatchSize() {
+		return batchSize;
+	}
+	
+	public boolean hasNext() {
+		return count > 0;
+	}
+
+	public List<Tuple2<String, byte[]>> getNext() throws IOException {
+		List<Tuple2<String, byte[]>> pairs = new ArrayList<>(batchSize);
+	
+		entry = null;
+
+		while ((entry = tar.getNextTarEntry()) != null && pairs.size() < batchSize) {
+			if (entry.isDirectory()) {
+				continue;
+			}
+
+			String filename = trimFilePath(entry.getName());
+//			System.out.println(filename);
+			byte[] content = new byte[(int) entry.getSize()];
+			tar.read(content, 0, content.length);
+			pairs.add(new Tuple2<String, byte[]>(filename, content));
+		}
+
+		if (entry == null) {
+			tar.close();
+			stream.close();
+		}
+		
+		count = pairs.size();
+	
+		return pairs;
+    }
+	
+	private static String trimFilePath(String fileName) {
+		int begin = fileName.lastIndexOf("/");
+		if (begin > 0) {
+			fileName = fileName.substring(begin+1);
+		}
+		int index = fileName.lastIndexOf(".txt");
+		if (index == -1) {
+			index = fileName.lastIndexOf(".nxml");
+		}
+		return fileName.substring(0, index);
+	}
+}
