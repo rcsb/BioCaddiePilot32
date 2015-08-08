@@ -1,4 +1,4 @@
-package org.biocaddie.MLExamples;
+package org.biocaddie.datamention.train;
 
 
 
@@ -7,9 +7,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.ml.Pipeline;
@@ -21,6 +18,7 @@ import org.apache.spark.ml.feature.Tokenizer;
 import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.SQLContext;
+import org.rcsb.spark.util.SparkUtils;
 
 import scala.Tuple2;
 
@@ -29,8 +27,8 @@ public class PdbDataMentionTrainer {
 
 	public static void main(String[] args) throws FileNotFoundException {
 		// Set up contexts.
-		SparkContext sc = getSparkContext();
-		SQLContext sqlContext = getSqlContext(sc);
+		SparkContext sc = SparkUtils.getSparkContext();
+		SQLContext sqlContext = SparkUtils.getSqlContext(sc);
 
 		// read positive data set, cases where the PDB ID occurs in the sentence of the primary citation
 		DataFrame positivesI = sqlContext.read().parquet(args[0]); 
@@ -158,30 +156,5 @@ public class PdbDataMentionTrainer {
         sb.append("Binary Classification Metrics: " + text + "\n");
         sb.append("Roc: " + roc + " F1: " + f1 + " FPR: " + fpr + " TP: " + tp + " TN: " + tn + " FP: " + fp + " FN: " + fn + "\n");
         return sb.toString();
-	}
-	
-	private static SparkContext getSparkContext() {
-		Logger.getLogger("org").setLevel(Level.ERROR);
-		Logger.getLogger("akka").setLevel(Level.ERROR);
-
-		int cores = Runtime.getRuntime().availableProcessors();
-		System.out.println("Available cores: " + cores);
-		SparkConf conf = new SparkConf()
-		.setMaster("local[" + cores + "]")
-		.setAppName(PdbDataMentionTrainer.class.getSimpleName())
-		.set("spark.driver.maxResultSize", "4g")
-		.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-		.set("spark.kryoserializer.buffer.max", "1g");
-
-		SparkContext sc = new SparkContext(conf);
-
-		return sc;
-	}
-	
-	private static SQLContext getSqlContext(SparkContext sc) {
-		SQLContext sqlContext = new SQLContext(sc);
-		sqlContext.setConf("spark.sql.parquet.compression.codec", "snappy");
-		sqlContext.setConf("spark.sql.parquet.filterPushdown", "true");
-		return sqlContext;
 	}
 }

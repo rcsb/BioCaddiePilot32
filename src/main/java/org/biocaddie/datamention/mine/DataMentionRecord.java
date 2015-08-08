@@ -1,6 +1,4 @@
-package org.biocaddie.DataConverters;
-
-
+package org.biocaddie.datamention.mine;
 
 import java.io.Serializable;
 

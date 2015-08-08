@@ -1,15 +1,12 @@
-package org.biocaddie.DataConverters;
+package org.biocaddie.datamention.mine;
 
-
-
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SaveMode;
+import org.biocaddie.datamention.download.PmcFileEntry;
+import org.rcsb.spark.util.SparkUtils;
 
 public class PdbDataMentionTrainingSetGenerator
 {
@@ -17,8 +14,9 @@ public class PdbDataMentionTrainingSetGenerator
 	{
 		long start = System.nanoTime();
 
-		JavaSparkContext sc = getSparkContext();
-		SQLContext sqlContext = getSqlContext(sc);
+		JavaSparkContext sc = SparkUtils.getJavaSparkContext();
+		sc.getConf().registerKryoClasses(new Class[]{PmcFileEntry.class});
+		SQLContext sqlContext = SparkUtils.getSqlContext(sc);
 
 		// Read data sources
 
@@ -47,7 +45,6 @@ public class PdbDataMentionTrainingSetGenerator
 		sqlContext.uncacheTable("Pmc");
 
 		// citations: pdbId, pmcId, pmId, depositionYear, depositionDate, entryType;
-//		DataFrame pdbCitations = sqlContext.read().parquet(args[2]).cache();
 		DataFrame currentEntries = sqlContext.read().parquet(args[2]).cache();
 		System.out.println("Current PDB records: " + currentEntries.count());
 		
@@ -70,10 +67,6 @@ public class PdbDataMentionTrainingSetGenerator
 				"SELECT m.pdbId, m.matchType, m.depositionYear, m.pmcId, m.pmId, m.publicationYear, m.primaryCitation, m.sentence, m.blindedSentence, 1.0 as label FROM Merged m WHERE m.primaryCitation = 1 AND m.publicationYear >= m.depositionYear").cache();
 		positivesI.coalesce(40).write().mode(SaveMode.Overwrite).parquet(args[4]);
 		System.out.println("positiveI: " + positivesI.count());
-
-//		DataFrame positivesII = sqlContext.sql(
-//				"SELECT m.pdbId, m.matchType, m.depositionYear, m.pmcId, m.pmId, m.publicationYear, m.primaryCitation, m.sentence, m.blindedSentence, 1.0 as label FROM Merged m WHERE m.matchType!='PDB_NONE' AND m.publicationYear>=m.depositionYear").cache();
-        // avoid duplicates with positivesI:
 		
 		DataFrame positivesII = sqlContext.sql(
 				"SELECT m.pdbId, m.matchType, m.depositionYear, m.pmcId, m.pmId, m.publicationYear, m.primaryCitation, m.sentence, m.blindedSentence, 1.0 as label FROM Merged m WHERE m.matchType!='PDB_NONE' AND m.primaryCitation = 0 AND m.publicationYear>=m.depositionYear").cache();
@@ -91,9 +84,6 @@ public class PdbDataMentionTrainingSetGenerator
 		negativesII.coalesce(40).write().mode(SaveMode.Overwrite).parquet(args[7]);			
 		System.out.println("negativeII: " + negativesII.count());
 
-//		DataFrame validMentions = sqlContext.sql(
-//				"SELECT m.pdbId, m.matchType, m.depositionYear, m.pmcId,m.pmId, m.publicationYear, m.primaryCitation, m.sentence, m.blindedSentence, 0.0 as label FROM Merged m WHERE m.entryType IS NOT NULL AND m.publicationYear>=m.depositionYear").cache();
-		
 		DataFrame validMentions = sqlContext.sql(
 				"SELECT m.pdbId, m.matchType, m.depositionYear, m.pmcId,m.pmId, m.publicationYear, m.primaryCitation, m.sentence, m.blindedSentence, 0.0 as label FROM Merged m WHERE m.entryType IS NOT NULL AND m.matchType='PDB_NONE' AND m.publicationYear>=m.depositionYear").cache();
 
@@ -106,31 +96,4 @@ public class PdbDataMentionTrainingSetGenerator
 
 		sc.stop();
 	}
-
-	
-	private static JavaSparkContext getSparkContext() {
-		Logger.getLogger("org").setLevel(Level.ERROR);
-		Logger.getLogger("akka").setLevel(Level.ERROR);
-
-		int cores = Runtime.getRuntime().availableProcessors();
-		System.out.println("Available cores: " + cores);
-		SparkConf conf = new SparkConf()
-		.setMaster("local[" + cores + "]")
-		.setAppName(PdbDataMentionTrainingSetGenerator.class.getSimpleName())
-		.set("spark.driver.maxResultSize", "4g")
-		.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-		.set("spark.kryoserializer.buffer.max", "1g");
-
-		JavaSparkContext sc = new JavaSparkContext(conf);
-
-		return sc;
-	}
-	
-	private static SQLContext getSqlContext(JavaSparkContext sc) {
-		SQLContext sqlContext = new SQLContext(sc);
-		sqlContext.setConf("spark.sql.parquet.compression.codec", "snappy");
-		sqlContext.setConf("spark.sql.parquet.filterPushdown", "true");
-		return sqlContext;
-	}
-
 }

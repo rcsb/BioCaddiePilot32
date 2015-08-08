@@ -1,4 +1,4 @@
-package org.biocaddie.DataConverters;
+package org.biocaddie.datamention.mine;
 
 
 
@@ -14,10 +14,12 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SaveMode;
+import org.biocaddie.datamention.download.TarFileReader;
+import org.rcsb.spark.util.SparkUtils;
 
 import scala.Tuple2;
 
-public class PdbIdMinerParallel
+public class PdbDataMentionMiner
 {
 	private static final int NUM_THREADS = 4;
 	private static final int NUM_TASKS = 3;
@@ -27,8 +29,10 @@ public class PdbIdMinerParallel
 	{
         boolean firstBatch = true;
 		long start = System.nanoTime();
-		JavaSparkContext sc = getSparkContext();
-		SQLContext sql = getSqlContext(sc);
+		
+		JavaSparkContext sc = SparkUtils.getJavaSparkContext();
+		sc.getConf().registerKryoClasses(new Class[]{DataMentionRecord.class});
+		SQLContext sql = SparkUtils.getSqlContext(sc);
 
 		int m = args.length-1;
 		System.out.println(Arrays.toString(args));
@@ -47,7 +51,7 @@ public class PdbIdMinerParallel
 				List<Tuple2<String, byte[]>> tuples = reader.getNext();
 				count += tuples.size();
 				JavaPairRDD<String, byte[]> data = sc.parallelizePairs(tuples, NUM_THREADS*NUM_TASKS);
-				JavaRDD<DataMentionRecord> records = data.flatMap(new PdbMentionMapper());
+				JavaRDD<DataMentionRecord> records = data.flatMap(new PdbDataMentionMapper());
 				// Apply a schema to an RDD of JavaBeans and register it as a table.
 				DataFrame dataRecords = sql.createDataFrame(records, DataMentionRecord.class);
 				
@@ -69,33 +73,5 @@ public class PdbIdMinerParallel
 		long time = System.nanoTime() - start;
 
 		System.out.println("time: " + time/1E9 + " s");
-	}
-
-	private static JavaSparkContext getSparkContext() {
-		Logger.getLogger("org").setLevel(Level.ERROR);
-		Logger.getLogger("akka").setLevel(Level.ERROR);
-
-		int cores = Runtime.getRuntime().availableProcessors();
-		System.out.println("Available cores: " + cores);
-		SparkConf conf = new SparkConf()
-		.setMaster("local[" + cores + "]")
-		.setAppName(PdbDataMentionTrainingSetGenerator.class.getSimpleName())
-		.set("spark.driver.maxResultSize", "4g")
-		.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-		.set("spark.kryoserializer.buffer.max", "1g");
-
-//		Class[] classes = {DataMentionRecord.class};
-//		conf.registerKryoClasses(classes);
-		conf.registerKryoClasses(new Class[]{DataMentionRecord.class});
-		JavaSparkContext sc = new JavaSparkContext(conf);
-
-		return sc;
-	}
-	
-	private static SQLContext getSqlContext(JavaSparkContext sc) {
-		SQLContext sqlContext = new SQLContext(sc);
-		sqlContext.setConf("spark.sql.parquet.compression.codec", "snappy");
-		sqlContext.setConf("spark.sql.parquet.filterPushdown", "true");
-		return sqlContext;
 	}
 }

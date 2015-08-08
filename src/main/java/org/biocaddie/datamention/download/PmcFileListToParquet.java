@@ -1,25 +1,21 @@
-package org.biocaddie.DataConverters;
-
-
+package org.biocaddie.datamention.download;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.io.Serializable;
 import java.sql.Date;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SaveMode;
+import org.rcsb.spark.util.SparkUtils;
 
 public class PmcFileListToParquet {
-	private static final int NUM_THREADS = 1;
 	private static final SimpleDateFormat dateFormat1 = new SimpleDateFormat("yyyy MMM dd");
 	private static final SimpleDateFormat dateFormat2 = new SimpleDateFormat("yyyy-MM-dd");
 
@@ -29,10 +25,9 @@ public class PmcFileListToParquet {
     }
 	
 	public void writeToParquet(String pmcFileListName, String parquetFileName) {
-		JavaSparkContext sc = getSparkContext();
-		SQLContext sqlContext = new SQLContext(sc);
-		sqlContext.setConf("spark.sql.parquet.compression.codec", "snappy");
-		sqlContext.setConf("spark.sql.parquet.filterPushdown", "true");
+		JavaSparkContext sc = SparkUtils.getJavaSparkContext();
+		sc.getConf().registerKryoClasses(new Class[]{PmcFileEntry.class});
+		SQLContext sqlContext = SparkUtils.getSqlContext(sc);
 		
 		List<PmcFileEntry> entries = readPmcFileEntries(pmcFileListName);
 		JavaRDD<PmcFileEntry> rdd = sc.parallelize(entries);
@@ -42,100 +37,6 @@ public class PmcFileListToParquet {
 		dataRecords.write().mode(SaveMode.Overwrite).parquet(parquetFileName);
 		
 		System.out.println(entries.size() + " PMC File records saved to: " + parquetFileName);
-	}
-
-	public static class PmcFileEntry implements Serializable {
-		private static final long serialVersionUID = 1L;
-		private String fileName;
-		private String citation;
-		private String pmcId;
-		private String pmId;
-		private Integer publicationYear;
-		private Date publicationDate;
-		private Date updateDate;
-		
-		public PmcFileEntry(String fileName, String citation, String pmcId, String pmId, Integer publicationYear, Date publicationDate, Date updateDate) {
-			this.fileName = fileName;
-			this.citation = citation;
-			this.pmcId = pmcId;
-			this.pmId = pmId;
-			this.publicationYear = publicationYear;
-			this.publicationDate = publicationDate;
-			this.updateDate = updateDate;		
-		}
-
-		public String getFileName() {
-			return fileName;
-		}
-
-		public void setFileName(String fileName) {
-			this.fileName = fileName;
-		}
-		
-		public String getCitation() {
-			return citation;
-		}
-
-		public void setCitation(String citation) {
-			this.citation = citation;
-		}
-
-		public String getPmcId() {
-			return pmcId;
-		}
-
-		public void setPmcId(String pmcId) {
-			this.pmcId = pmcId;
-		}
-
-		public String getPmId() {
-			return pmId;
-		}
-
-		public void setPmId(String pmId) {
-			this.pmId = pmId;
-		}
-
-		public Integer getPublicationYear() {
-			return publicationYear;
-		}
-
-		public void setPublicationYear(Integer publicationYear) {
-			this.publicationYear = publicationYear;
-		}
-
-		public Date getPublicationDate() {
-			return publicationDate;
-		}
-
-		public void setPublicationDate(Date publicationDate) {
-			this.publicationDate = publicationDate;
-		}
-
-		public Date getUpdateDate() {
-			return updateDate;
-		}
-
-		public void setUpdateDate(Date updateDate) {
-			this.updateDate = updateDate;
-		}
-		
-		public String toString() {
-			StringBuilder sb = new StringBuilder();
-			sb.append("FileName: ");
-			sb.append(fileName);
-		    sb.append(", PMC Id: ");
-			sb.append(pmcId);
-		    sb.append(", PM Id: ");
-			sb.append(pmId);
-		    sb.append(", PublicationYear: ");
-			sb.append(publicationYear);
-		    sb.append(", PublicationDate: ");
-			sb.append(publicationDate);
-		    sb.append(", UpdateDate: ");
-			sb.append(updateDate);
-			return sb.toString();
-		}
 	}
 	
 	public List<PmcFileEntry> readPmcFileEntries(String fileName) {
@@ -242,13 +143,4 @@ public class PmcFileListToParquet {
 		}
 	}
 	
-	private static JavaSparkContext getSparkContext() {
-		SparkConf conf = new SparkConf()
-				.setMaster("local[" + NUM_THREADS + "]")
-				.setAppName(PmcFileListToParquet.class.getSimpleName());
-
-		JavaSparkContext sc = new JavaSparkContext(conf);
-		
-		return sc;
-	}
 }

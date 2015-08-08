@@ -1,4 +1,4 @@
-package org.biocaddie.DataConverters;
+package org.biocaddie.datamention.download;
 
 
 
@@ -15,14 +15,12 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.GZIPInputStream;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SaveMode;
+import org.rcsb.spark.util.SparkUtils;
 
 public class PdbObsoleteInfoToParquet {
 	// Obsolete files HEADER    HYDROLASE(O-GLYCOSYL)                   05-JAN-93   116L 
@@ -45,10 +43,9 @@ public class PdbObsoleteInfoToParquet {
 	}
 	
 	public void writeToParquet(String parquetFileName) {
-		JavaSparkContext sc = getJavaSparkContext();
-		SQLContext sqlContext = getSqlContext(sc);
-		sqlContext.setConf("spark.sql.parquet.compression.codec", "snappy");
-		sqlContext.setConf("spark.sql.parquet.filterPushdown", "true");
+		JavaSparkContext sc = SparkUtils.getJavaSparkContext();
+		sc.getConf().registerKryoClasses(new Class[]{PdbPrimaryCitation.class});
+		SQLContext sqlContext = SparkUtils.getSqlContext(sc);
 		
 		List<PdbPrimaryCitation> entries = downloadObsoleteModels();
 		entries.addAll(downloadCurrentModels());
@@ -156,115 +153,5 @@ public class PdbObsoleteInfoToParquet {
 			e.printStackTrace();
 		}
 		return header;
-	}
-
-//	private static List<String> getFileNames(String url) {	
-//		List<String> files = new ArrayList<>();
-//		
-//		FTPClient ftpClient = new FTPClient();
-//
-//		try {
-//			ftpClient.connect(SERVER);
-//			showServerReply(ftpClient);
-//
-//			int replyCode = ftpClient.getReplyCode();
-//			if (!FTPReply.isPositiveCompletion(replyCode)) {
-//				System.out.println("Connect failed");
-//				return files;
-//			}
-//
-//			boolean success = ftpClient.login(USER_NAME, PASSWORD);
-//			showServerReply(ftpClient);
-//
-//			if (!success) {
-//				System.out.println("Could not login to the server");
-//				return files;
-//			}
-//
-//			files = listDirectory(ftpClient, url, "", 0);
-//		
-//			ftpClient.disconnect();
-//
-//		} catch (IOException ex) {
-//			System.out.println("Oops! Something wrong happened");
-//			ex.printStackTrace();
-//		} finally {
-//			// logs out and disconnects from server
-//			try {
-//				if (ftpClient.isConnected()) {
-//					ftpClient.logout();
-//					ftpClient.disconnect();
-//				}
-//			} catch (IOException ex) {
-//				ex.printStackTrace();
-//			}
-//		}
-//		return files;
-//	}
-	
-//	private static List<String> listDirectory(FTPClient ftpClient, String parentDir,
-//			String currentDir, int level) throws IOException {
-//
-//		List<String> fileNames = new ArrayList<>();
-//		String dirToList = parentDir;
-//		if (!currentDir.equals("")) {
-//			dirToList += "/" + currentDir;
-//		}
-//		FTPFile[] subFiles = ftpClient.listFiles(dirToList);
-//		if (subFiles != null && subFiles.length > 0) {
-//			for (FTPFile aFile : subFiles) {
-//				String currentFileName = aFile.getName();
-//				if (currentFileName.equals(".")
-//						|| currentFileName.equals("..")) {
-//					// skip parent directory and directory itself
-//					continue;
-//				}
-//				for (int i = 0; i < level; i++) {
-//					System.out.print("\t");
-//				}
-//				if (aFile.isDirectory()) {
-//					System.out.println("[" + currentFileName + "]");
-//					fileNames.addAll(listDirectory(ftpClient, dirToList, currentFileName, level + 1));
-//				} else {
-//					fileNames.add(dirToList + "/" + currentFileName);
-//					System.out.println(currentFileName);
-//				}
-//			}
-//		}
-//		return fileNames;
-//	}
-//
-//	private static void showServerReply(FTPClient ftpClient) {
-//		String[] replies = ftpClient.getReplyStrings();
-//		if (replies != null && replies.length > 0) {
-//			for (String aReply : replies) {
-//				System.out.println("SERVER: " + aReply);
-//			}
-//		}
-//	}
-	
-	private static JavaSparkContext getJavaSparkContext() {
-		Logger.getLogger("org").setLevel(Level.ERROR);
-		Logger.getLogger("akka").setLevel(Level.ERROR);
-
-		int cores = Runtime.getRuntime().availableProcessors();
-		System.out.println("Available cores: " + cores);
-		SparkConf conf = new SparkConf()
-		.setMaster("local[" + cores + "]")
-		.setAppName(PdbDataMentionTrainingSetGenerator.class.getSimpleName())
-		.set("spark.driver.maxResultSize", "4g")
-		.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-		.set("spark.kryoserializer.buffer.max", "1g");
-
-		JavaSparkContext sc = new JavaSparkContext(conf);
-
-		return sc;
-	}
-	
-	private static SQLContext getSqlContext(JavaSparkContext sc) {
-		SQLContext sqlContext = new SQLContext(sc);
-		sqlContext.setConf("spark.sql.parquet.compression.codec", "snappy");
-		sqlContext.setConf("spark.sql.parquet.filterPushdown", "true");
-		return sqlContext;
 	}
 }

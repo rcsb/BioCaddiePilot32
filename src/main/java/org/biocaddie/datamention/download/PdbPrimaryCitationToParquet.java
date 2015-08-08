@@ -1,4 +1,4 @@
-package org.biocaddie.DataConverters;
+package org.biocaddie.datamention.download;
 
 
 
@@ -9,39 +9,33 @@ import java.sql.Date;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SaveMode;
+import org.rcsb.spark.util.SparkUtils;
 
 public class PdbPrimaryCitationToParquet {
 	private static final String CURRENT_URL = "http://www.rcsb.org/pdb/rest/customReport.csv?pdbids=*&customReportColumns=pmc,pubmedId,depositionDate&service=wsfile&format=csv&primaryOnly=1";
     private static final String UNRELEASED_URL = "http://www.rcsb.org/pdb/rest/getUnreleased";
-    private static final String OBSOLETE_URL = "http://www.rcsb.org/pdb/rest/getObsolete";
-    
-	public static final Integer CURRENT = 1;
-	public static final Integer OBSOLETE = 2;
-	public static final Integer UNRELEASED = 3;
-	public static final Integer UNASSIGNED = 4;
-	
-	private static final int NUM_THREADS = 1;
+//    private static final String OBSOLETE_URL = "http://www.rcsb.org/pdb/rest/getObsolete";
+
 	
     public static void main(String[] args) {
 	    	PdbPrimaryCitationToParquet ptp = new PdbPrimaryCitationToParquet();
 	    	ptp.writeToParquet(args[0]);
  }
 
-	public void writeToParquet(String parquetFileName) {
-		JavaSparkContext sc = getSparkContext();
-		SQLContext sqlContext = new SQLContext(sc);
-		sqlContext.setConf("spark.sql.parquet.compression.codec", "snappy");
-		sqlContext.setConf("spark.sql.parquet.filterPushdown", "true");
+	public void writeToParquet(String parquetFileName) {		
+		JavaSparkContext sc = SparkUtils.getJavaSparkContext();
+		sc.getConf().registerKryoClasses(new Class[]{PdbPrimaryCitation.class});
+		
+		SQLContext sqlContext = SparkUtils.getSqlContext(sc);
 		
 		List<PdbPrimaryCitation> entries = downloadPrimaryCitations();
 		entries.addAll(downloadUnreleased());
-		entries.addAll(downloadObsolete());
+//		entries.addAll(downloadObsolete());
 		
 		JavaRDD<PdbPrimaryCitation> rdd = sc.parallelize(entries);
 		
@@ -86,7 +80,7 @@ public class PdbPrimaryCitationToParquet {
 					}
 					Date depositionDate = Date.valueOf(date);
 					
-					PdbPrimaryCitation citation = new PdbPrimaryCitation(pdbId, pmcId, pmId, depositionYear, depositionDate, CURRENT);
+					PdbPrimaryCitation citation = new PdbPrimaryCitation(pdbId, pmcId, pmId, depositionYear, depositionDate, PdbPrimaryCitation.CURRENT);
 					
 					citations.add(citation);
 				}
@@ -127,7 +121,7 @@ public class PdbPrimaryCitationToParquet {
 						System.out.println("Unreleased PDB " + pdbId + ": unparsable date: " + date);
 					}
 				
-					PdbPrimaryCitation citation = new PdbPrimaryCitation(pdbId, null, null, depositionYear, depositionDate, UNRELEASED);
+					PdbPrimaryCitation citation = new PdbPrimaryCitation(pdbId, null, null, depositionYear, depositionDate, PdbPrimaryCitation.UNRELEASED);
 					citations.add(citation);
 				}
 			}
@@ -137,108 +131,8 @@ public class PdbPrimaryCitationToParquet {
 		}
 		return citations;
 	}
-	
-	private List<PdbPrimaryCitation> downloadObsolete() {
-		List<PdbPrimaryCitation> citations = new ArrayList<>();
-		
-		try {
-			URL u = new URL(OBSOLETE_URL);
-			BufferedReader reader = new BufferedReader(
-					new InputStreamReader(u.openStream()));
-
-			String line = null;
-
-			while ((line = reader.readLine()) != null) {
-				int beginIndex = line.indexOf("structureId=\"");
-				if (beginIndex > 0) {
-					String pdbId = line.substring(beginIndex + 13, beginIndex + 17);
-					PdbPrimaryCitation citation = new PdbPrimaryCitation(pdbId, null, null, null, null, OBSOLETE);
-					citations.add(citation);
-				}
-			}
-		} catch (Exception e) {
-			e.printStackTrace();
-			return citations;
-		}
-		return citations;
-	}
-	
 	
 	private static String removeQuotes(String string) {
 		return string.replaceAll("\"", "");
 	}
-	
-	private static JavaSparkContext getSparkContext() {
-		SparkConf conf = new SparkConf()
-				.setMaster("local[" + NUM_THREADS + "]")
-				.setAppName(PdbPrimaryCitationToParquet.class.getSimpleName());
-
-		JavaSparkContext sc = new JavaSparkContext(conf);
-		
-		return sc;
-	}
-	
-//	public static class PrimaryCitation implements Serializable {
-//		private static final long serialVersionUID = 1L;
-//		private String pdbId;
-//		private String pmcId;
-//		private String pmId;
-//		private Integer depositionYear;
-//		private Date depositionDate;
-//		private Integer entryType;
-//		
-//		public PrimaryCitation(String pdbId, String pmcId, String pmId,
-//				Integer depositionYear, Date depositionDate, Integer entryType) {
-//			this.pdbId = pdbId;
-//			this.pmcId = pmcId;
-//			this.pmId = pmId;
-//			this.depositionYear = depositionYear;
-//			this.depositionDate = depositionDate;
-//			this.entryType = entryType;
-//		}
-//		
-//		public String getPdbId() {
-//			return pdbId;
-//		}
-//		public void setPdbId(String pdbId) {
-//			this.pdbId = pdbId;
-//		}
-//		public String getPmcId() {
-//			return pmcId;
-//		}
-//		public void setPmcId(String pmcId) {
-//			this.pmcId = pmcId;
-//		}
-//		public String getPmId() {
-//			return pmId;
-//		}
-//		public void setPmId(String pmId) {
-//			this.pmId = pmId;
-//		}
-//
-//		public Integer getDepositionYear() {
-//			return depositionYear;
-//		}
-//
-//		public void setDepositionYear(Integer depositionYear) {
-//			this.depositionYear = depositionYear;
-//		}
-//
-//		public Date getDepositionDate() {
-//			return depositionDate;
-//		}
-//
-//		public void setDepositionDate(Date depositionDate) {
-//			this.depositionDate = depositionDate;
-//		}
-//
-//		public Integer getEntryType() {
-//			return entryType;
-//		}
-//
-//		public void setEntryType(Integer entryType) {
-//			this.entryType = entryType;
-//		}
-//		
-//	}
 }

@@ -1,4 +1,4 @@
-package org.biocaddie.MLExamples;
+package org.biocaddie.datamention.train;
 
 
 
@@ -21,6 +21,7 @@ import org.apache.spark.ml.feature.Tokenizer;
 import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.SQLContext;
+import org.rcsb.spark.util.SparkUtils;
 
 import scala.Tuple2;
 
@@ -28,8 +29,8 @@ public class PdbPrimaryCitationTrainer {
 
 	public static void main(String[] args) throws FileNotFoundException {
 		// Set up contexts.
-		SparkContext sc = getSparkContext();
-		SQLContext sqlContext = getSqlContext(sc);
+		SparkContext sc = SparkUtils.getSparkContext();
+		SQLContext sqlContext = SparkUtils.getSqlContext(sc);
 
 		// read positive data set, cases where the PDB ID occurs in the sentence of the primary citation
 		DataFrame positivesI = sqlContext.read().parquet(args[0]);

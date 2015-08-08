@@ -22,11 +22,8 @@
 /Users/peter/BioCaddiePilot32/src/main/java/org/biocaddie/citationanalysis/retrievedata/CitationSummaryResultXmlParser.java
 /Users/peter/BioCaddiePilot32/src/main/java/org/biocaddie/citationanalysis/utility/GenerateDataForCharts.java
 /Users/peter/BioCaddiePilot32/src/main/java/org/biocaddie/MLExamples/MergeResults.java
-/Users/peter/BioCaddiePilot32/src/main/java/org/biocaddie/PDBTools/PdbIdSourceDownloader.java
 /Users/peter/BioCaddiePilot32/src/main/java/org/biocaddie/MLExamples/LabeledDocument.java
 /Users/peter/BioCaddiePilot32/src/main/java/org/biocaddie/citationanalysis/utility/DrugTargetCorrelation.java
-/Users/peter/BioCaddiePilot32/src/main/java/org/biocaddie/DataConverters/PdbStatusToParquet_obs.java
-/Users/peter/BioCaddiePilot32/src/main/java/org/biocaddie/PDBTools/PDBId.java
 /Users/peter/BioCaddiePilot32/src/main/java/org/biocaddie/DataConverters/DataMentionRecord.java
 /Users/peter/BioCaddiePilot32/src/main/java/org/biocaddie/MLExamples/PdbDataMentionTrainer.java
 /Users/peter/BioCaddiePilot32/src/main/java/org/biocaddie/PDBTools/PdbIdSource.java
@@ -41,4 +38,3 @@
 /Users/peter/BioCaddiePilot32/src/main/java/org/biocaddie/MLExamples/ModelSerializer.java
 /Users/peter/BioCaddiePilot32/src/main/java/org/biocaddie/citationanalysis/retrievedata/RetrieveSummaryFromEutils.java
 /Users/peter/BioCaddiePilot32/src/main/java/org/biocaddie/MLExamples/DataFrameToDelimitedFileWriter.java
-/Users/peter/BioCaddiePilot32/src/main/java/org/biocaddie/PDBTools/PDBDictionary.java

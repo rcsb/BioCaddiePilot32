@@ -1,4 +1,4 @@
-package org.biocaddie.MLExamples;
+package org.biocaddie.datamention.train;
 
 
 

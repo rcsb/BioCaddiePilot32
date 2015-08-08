@@ -1,4 +1,4 @@
-package org.biocaddie.DataConverters;
+package org.biocaddie.datamention.mine;
 
 
 
@@ -18,7 +18,7 @@ import edu.stanford.nlp.pipeline.StanfordCoreNLP;
 import edu.stanford.nlp.util.CoreMap;
 import scala.Tuple2;
 
-public class PdbMentionMapper implements FlatMapFunction<Tuple2<String, byte[]>, DataMentionRecord> {
+public class PdbDataMentionMapper implements FlatMapFunction<Tuple2<String, byte[]>, DataMentionRecord> {
 	private static final long serialVersionUID = 1L;
 	private static StanfordCoreNLP textPipeline;
 	static {
@@ -59,8 +59,6 @@ public class PdbMentionMapper implements FlatMapFunction<Tuple2<String, byte[]>,
 			for (CoreMap cmSentence : sentences) {
 				String sentence = cmSentence.toString();
 				if (PDBFinder.containsPdbId(sentence) || sentence.contains("10.2210/pdb")) {
-//					printXmlTags(sentence);
-//					System.out.println("s: " + sentence);
 					Set<String> pdbIds = PDBFinder.getPdbIds(sentence);
 					
 					String matchType = PDBFinder.getPdbMatchType(sentence);
