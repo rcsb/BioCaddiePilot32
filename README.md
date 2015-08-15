@@ -18,7 +18,6 @@ Data mentions are references to data sets in publications that fall into two cat
 
 Structured data mentions examples for Protein Data Bank Identifiers (PDB IDs)
 
-
 Reference     | Example
 ------------- |---------
 PDB ID        | `PDB ID: 1STP`
@@ -28,10 +27,11 @@ NXML External | `<ext-link .. ext-link-type=“pdb” xlink:href=“1STP”>`
 
 
 Unstructured data mentions
-Type | Example
+
+Type                | Example
 ------------------- | -------------
-Valid (PDB ID)      | The structure of the active site of the K165C enzyme (**4AHQ**) ...
-Invalid (Gene Name) | The polymorphisms of cytochrome P450 **2C19** (CYP2C19) gene ...
+Valid (PDB ID)      | `The structure of the active site of the K165C enzyme (**4AHQ**) ...`
+Invalid (Gene Name) | `The polymorphisms of cytochrome P450 **2C19** (CYP2C19) gene ...`
 
 
 
