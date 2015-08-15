@@ -30,8 +30,8 @@ Unstructured data mentions
 
 Type                | Example
 ------------------- | -------------
-Valid (PDB ID)      | `The structure of the active site of the K165C enzyme (`**4AHQ`) ...`
-Invalid (Gene Name) | `The polymorphisms of cytochrome P450 **2C19** (CYP2C19) gene ...`
+Valid (4AHQ)        | `The structure of the active site of the K165C enzyme (4AHQ) ...`
+Invalid (2C19)      | `The polymorphisms of cytochrome P450 **2C19** (CYP2C19) gene ...`
 
 
 
@@ -41,6 +41,7 @@ Invalid (Gene Name) | `The polymorphisms of cytochrome P450 **2C19** (CYP2C19) g
 
 #Project status
 ##Goals
+
 
 <!---
     Provide an R package that hooks up the Genomics APIs to all of the other great existing R tools for biology. This package should be consumable by R developers.
