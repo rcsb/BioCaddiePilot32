@@ -9,7 +9,7 @@ LEADERS: PETER ROSE, PH.D. PROTEIN DATA BANK UCSD AND CHUN-NAN HSU, PH.D. DEPART
 Collaborator: Cathy Wu, Ph.D. and Cecilia Arighi, Ph.D. (non funded)
 
 
-[a link](https://github.com/rcsb/BioCaddiePilot32/tree/master/src/main/java/org/biocaddie/NetworkAnalysis.md)
+[Network Analysis](https://github.com/rcsb/BioCaddiePilot32/blob/master/src/main/java/NetworkAnalysis.md)
 
 
 This Readme file explains the usage of programs:
