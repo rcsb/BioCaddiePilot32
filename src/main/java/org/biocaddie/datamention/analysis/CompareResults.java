@@ -1,4 +1,4 @@
-package org.biocaddie.datamention.train;
+package org.biocaddie.datamention.analysis;
 
 import java.io.FileNotFoundException;
 import java.util.Arrays;

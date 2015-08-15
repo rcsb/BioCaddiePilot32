@@ -1,15 +1,9 @@
 package org.biocaddie.datamention.train;
 
-
-
-
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.ml.Pipeline;
@@ -40,6 +34,8 @@ public class PdbPrimaryCitationTrainer {
 		//		long positiveCountI = positivesI.count();
 
 		DataFrame positivesII = sqlContext.read().parquet(args[1]); 
+		System.out.println("Sampling 16% of positivesII");
+		positivesII = positivesII.sample(false,  0.16, 1);
 		sqlContext.registerDataFrameAsTable(positivesII, "positivesII");
 		DataFrame negatives = sqlContext.sql("SELECT pdbId, matchType, depositionYear, pmcId, pmId, publicationYear, CAST(primaryCitation AS double) AS label, sentence, blindedSentence FROM positivesII WHERE sentence NOT LIKE '%deposited%' AND sentence NOT LIKE '%submitted%'");
 		negatives.show(10);
@@ -64,7 +60,7 @@ public class PdbPrimaryCitationTrainer {
 		DataFrame all = positives.unionAll(negatives);
 
 		// split into training and test sets
-		DataFrame[] split = all.randomSplit(new double[]{.75, .25}, 2); // changed seed from 1 to 2!!
+		DataFrame[] split = all.randomSplit(new double[]{.80, .20}, 1);
 		DataFrame training = split[0].cache();	
 		DataFrame test = split[1].cache();
 
@@ -119,49 +115,32 @@ public class PdbPrimaryCitationTrainer {
 	}
 
 	private static String getMetrics(DataFrame predictions, String text) {
+//		for (Row r: predictions.collect()) {
+//			  System.out.println("prob=" + r.getAs("probability"));
+//		}
 		JavaRDD<Tuple2<Object, Object>> scoresAndLabels = predictions.toJavaRDD().map(r -> new Tuple2<Object, Object>(r.getAs("prediction"), r.getAs("label"))).cache();
+//		JavaRDD<Tuple2<Object, Object>> scoresAndLabels = predictions.toJavaRDD().map(r -> new Tuple2<Object, Object>(((DenseVector)r.getAs("probability")).toArray()[0], r.getAs("label"))).cache();
 
 		BinaryClassificationMetrics metrics1 = new BinaryClassificationMetrics(JavaRDD.toRDD(scoresAndLabels));
-		double roc = metrics1.areaUnderROC();
+        double roc = metrics1.areaUnderROC();
+//        for (Tuple2<Object, Object> t: metrics1.recallByThreshold().toJavaRDD().collect()) {
+//        	System.out.println(t);
+//        }
+        
+        // Evaluate true/false positives(1)/negatives(0)
+        //                                                 prediction             label    
+        int tp = scoresAndLabels.map(t -> ((double)t._1 == 1.0 && (double)t._2 == 1.0) ? 1 : 0).reduce((a,b) -> a + b);
+        int tn = scoresAndLabels.map(t -> ((double)t._1 == 0.0 && (double)t._2 == 0.0) ? 1 : 0).reduce((a,b) -> a + b);
+        int fp = scoresAndLabels.map(t -> ((double)t._1 == 1.0 && (double)t._2 == 0.0) ? 1 : 0).reduce((a,b) -> a + b);
+        int fn = scoresAndLabels.map(t -> ((double)t._1 == 0.0 && (double)t._2 == 1.0) ? 1 : 0).reduce((a,b) -> a + b);
 
-		// Evaluate true/false positives(1)/negatives(0)
-		//                                                 prediction             label    
-		int tp = scoresAndLabels.map(t -> ((double)t._1 == 1.0 && (double)t._2 == 1.0) ? 1 : 0).reduce((a,b) -> a + b);
-		int tn = scoresAndLabels.map(t -> ((double)t._1 == 0.0 && (double)t._2 == 0.0) ? 1 : 0).reduce((a,b) -> a + b);
-		int fp = scoresAndLabels.map(t -> ((double)t._1 == 1.0 && (double)t._2 == 0.0) ? 1 : 0).reduce((a,b) -> a + b);
-		int fn = scoresAndLabels.map(t -> ((double)t._1 == 0.0 && (double)t._2 == 1.0) ? 1 : 0).reduce((a,b) -> a + b);
-
-		double f1 = 2.0 * tp / (2*tp + fp + fn);
-		double fpr = 1.0 * fp /(fp + tn);
-		scoresAndLabels.unpersist();
-		StringBuilder sb = new StringBuilder();
-		sb.append("Binary Classification Metrics: " + text + "\n");
-		sb.append("Roc: " + roc + " F1: " + f1 + " FPR: " + fpr + " TP: " + tp + " TN: " + tn + " FP: " + fp + " FN: " + fn + "\n");
-		return sb.toString();
-	}
-
-	private static SparkContext getSparkContext() {
-		Logger.getLogger("org").setLevel(Level.ERROR);
-		Logger.getLogger("akka").setLevel(Level.ERROR);
-
-		int cores = Runtime.getRuntime().availableProcessors();
-		System.out.println("Available cores: " + cores);
-		SparkConf conf = new SparkConf()
-		.setMaster("local[" + cores + "]")
-		.setAppName(PdbPrimaryCitationTrainer.class.getSimpleName())
-		.set("spark.driver.maxResultSize", "4g")
-		.set("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-		.set("spark.kryoserializer.buffer.max", "1g");
-
-		SparkContext sc = new SparkContext(conf);
-
-		return sc;
-	}
-
-	private static SQLContext getSqlContext(SparkContext sc) {
-		SQLContext sqlContext = new SQLContext(sc);
-		sqlContext.setConf("spark.sql.parquet.compression.codec", "snappy");
-		sqlContext.setConf("spark.sql.parquet.filterPushdown", "true");
-		return sqlContext;
+        double f1 = 2.0 * tp / (2*tp + fp + fn);
+        double fpr = 1.0 * fp /(fp + tn);
+        double fnr = 1.0 * fn /(fn + tp);
+        scoresAndLabels.unpersist();
+        StringBuilder sb = new StringBuilder();
+        sb.append("Binary Classification Metrics: " + text + "\n");
+        sb.append("Roc: " + roc + " F1: " + f1 + " FPR: " + fpr + " FNT: " + fnr + " TP: " + tp + " TN: " + tn + " FP: " + fp + " FN: " + fn + "\n");
+        return sb.toString();
 	}
 }

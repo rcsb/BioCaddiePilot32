@@ -1,13 +1,8 @@
 package org.biocaddie.datamention.mine;
 
-
-
 import java.util.Arrays;
 import java.util.List;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
@@ -23,6 +18,7 @@ public class PdbDataMentionMiner
 {
 	private static final int NUM_THREADS = 4;
 	private static final int NUM_TASKS = 3;
+//	private static final int BATCH_SIZE = 25000;
 	private static final int BATCH_SIZE = 25000;
 
 	public static void main(String args[]) throws Exception
@@ -50,8 +46,13 @@ public class PdbDataMentionMiner
 			while (reader.hasNext()) {
 				List<Tuple2<String, byte[]>> tuples = reader.getNext();
 				count += tuples.size();
+				
 				JavaPairRDD<String, byte[]> data = sc.parallelizePairs(tuples, NUM_THREADS*NUM_TASKS);
-				JavaRDD<DataMentionRecord> records = data.flatMap(new PdbDataMentionMapper());
+				
+				JavaRDD<DataMentionRecord> records = data
+				.filter(new PdbRegExFilter())
+				.flatMap(new PdbDataMentionMapper());
+				
 				// Apply a schema to an RDD of JavaBeans and register it as a table.
 				DataFrame dataRecords = sql.createDataFrame(records, DataMentionRecord.class);
 				

@@ -16,22 +16,20 @@ import java.util.regex.Pattern;
 public class PDBFinder implements Serializable {
     private static final long serialVersionUID = 1L;
     /*
-     * General pattern to match a pdb id. Note, we only allow all upper case or all lower case versions
-     * Examples: 1XYZ, 1xyz, 1x2z, 123z (need to exclude integers)
+     * General pattern to match a pdb id. Note, we only allow all upper case or all lower case patterns
+     * Examples: 1XYZ, 1xyz, 1x2z, 123z
      */
     private static final Pattern PDB_PATTERN = Pattern.compile("[1-9]([A-Z0-9]{3}|[a-z0-9]{3})");
+ 
     private static final Pattern ID_PATTERN = Pattern.compile("\\b(PDB ID:|pdb id:|PDBID|pdbid|PDB_ID|pdb_id)");
     private static final Pattern PDB_ID_PATTERN = Pattern.compile(ID_PATTERN.pattern() + "." + PDB_PATTERN.pattern() + "\\b");
     private static final Pattern PDB_DOI_PATTERN = Pattern.compile("10.2210/pdb" + PDB_PATTERN.pattern() + "/pdb");
     private static final Pattern PDB_ENTRY_PATTERN = Pattern.compile("\\b" + PDB_PATTERN.pattern() + "entry" + "\\b");
     private static final Pattern PDB_FILE_PATTERN = Pattern.compile("\\b" + PDB_PATTERN.pattern() + ".pdb" + "\\b");
-//    private static final Pattern PDB_FILE_PATTERN2 = Pattern.compile("\\b" + PDB_PATTERN.pattern() + ".cif" + "\\b");
-//    private static final Pattern PDB_FILE_PATTERN3 = Pattern.compile("\\b" + PDB_PATTERN.pattern() + ".ent" + "\\b"); // not correct hits, some mismatches
     private static final Pattern RCSB_PDB_URL_PATTERN1 = Pattern.compile("explore.do.structureId=" + PDB_PATTERN.pattern() + "\\b");
     private static final Pattern RCSB_PDB_URL_PATTERN2 = Pattern.compile("explore.cgi.pdbId="+ PDB_PATTERN.pattern() + "\\b");
     private static final Pattern RCSB_PDB_URL_PATTERN3 = Pattern.compile("structidSearch.do.structureId="+ PDB_PATTERN.pattern() + "\\b");
-//    private static final Pattern RCSB_PDB_URL_PATTERN = Pattern.compile("http://www.rcsb.org/pdb/explore.do?structureId=" + PDB_PATTERN.pattern() + "\\b");
-    public static final Pattern EXT_LINK_PATTERN = Pattern.compile("<ext-link ext-link-type=\"pdb\" xlink:href=\"" + PDB_PATTERN.pattern());
+//    public static final Pattern EXT_LINK_PATTERN = Pattern.compile("<ext-link ext-link-type=\"pdb\" xlink:href=\"" + PDB_PATTERN.pattern());
     private static final Pattern PDB_NONE_PATTERN = Pattern.compile("\\b" + PDB_PATTERN.pattern() + "\\b");
     /*
      * PDB ID in href='...."
@@ -50,7 +48,7 @@ public class PDBFinder implements Serializable {
     private static final Pattern ACCESSION_SKIP_1_PATTERN = Pattern.compile("\\b(accession|Accession)\\W*\\w+\\W*" + PDB_PATTERN.pattern() + "\\b");
     private static final Pattern ACCESSION_SKIP_2_PATTERN = Pattern.compile("\\b(accession|Accession)\\W*\\w+\\W*\\w+\\W*" + PDB_PATTERN.pattern() + "\\b");
     /*
-     * 4-digit integer regular expression
+     * Exclusion patterns
      */
     private static final Pattern DIGITS = Pattern.compile("\\d{4}");
 	private static final char dot = '·';
@@ -60,11 +58,9 @@ public class PDBFinder implements Serializable {
 
     static {
         patterns.put("PDB_ID", PDB_ID_PATTERN);
-//        patterns.put("PDB_DOI", PDB_DOI_PATTERN); // this one doesn't match either
+//        patterns.put("PDB_DOI", PDB_DOI_PATTERN); // this one doesn't match
         patterns.put("PDB_ENTRY", PDB_ENTRY_PATTERN);
-        patterns.put("PDB_FILE", PDB_FILE_PATTERN); // also look for .cif?, .ent?
-//        patterns.put("PDB_FILE2", PDB_FILE_PATTERN2);
- //       patterns.put("PDB_FILE3", PDB_FILE_PATTERN3);
+        patterns.put("PDB_FILE", PDB_FILE_PATTERN);
         patterns.put("RCSB_PDB_URL1", RCSB_PDB_URL_PATTERN1); // previously found ~600, this one doesn't match! PMC2483516: 1WI1 ((http://www.rcsb.org/pdb/explore.do?structureId=1WI1)
         patterns.put("RCSB_PDB_URL2", RCSB_PDB_URL_PATTERN2);
         patterns.put("RCSB_PDB_URL3", RCSB_PDB_URL_PATTERN3); 
@@ -98,10 +94,14 @@ public class PDBFinder implements Serializable {
     	System.out.println(containsPdbId(doi));
     	System.out.println(getPdbMatchType(doi));
     	System.out.println(getPdbIds(doi));
+    	System.out.println(containsPdbIdFast("deposited 1XYZ sdfjksdfl"));
     	System.out.println();
     }
     
 	public static boolean containsPdbId(String document) {
+//		if (! containsPdbIdFast(document)) {
+//			return false;
+//		}
 		Matcher matcher = PDB_NONE_PATTERN.matcher(document);
 		while (matcher.find()) {
 			if (!DIGITS.matcher(matcher.group()).find()) {
@@ -183,35 +183,24 @@ public class PDBFinder implements Serializable {
     }
 
 	private static boolean containsPdbIdFast(String document) {
-		int digits = 0;
 		boolean lowercase = true;
+		
 		for (int i = 0; i < document.length()-4; i++) {
 			char c = document.charAt(i);
-			digits = 1;
+			int digits = 1;
 			//1. digit
 			if (c > '0' && c <= '9') {
-				i++;
-				c = document.charAt(i);
-				if (c > '0' && c <= '9') {
-					digits++;
-				} else if (c >= 'a' && c <= 'z') {
-					lowercase = true;
-				} else if (! (c >= 'A' && c <= 'Z')) {
-					continue;
-				}
-				i++;
-				c = document.charAt(i);
 				// 2. digit or letter
+				i++;
+				c = document.charAt(i);
 				if (c >= '0' && c <= '9') {
 					digits++;
 				} else if (c >= 'a' && c <= 'z') {
-					if (!lowercase) {
-						continue;
-					}
+					lowercase = true;
 				} else if (c >= 'A' && c <= 'Z') {
-					if (lowercase) {
-					    continue;
-					}
+					lowercase = false;
+				} else {
+					continue;
 				}
 				i++;
 				c = document.charAt(i);
@@ -232,9 +221,6 @@ public class PDBFinder implements Serializable {
 				// 4. digit or letter
 				if (c >= '0' && c <= '9') {
 					digits++;
-					if (digits == 4) {
-						continue;
-					}
 				} else if (c >= 'a' && c <= 'z') {
 					if (!lowercase) {
 						continue;
@@ -243,6 +229,9 @@ public class PDBFinder implements Serializable {
 					if (lowercase) {
 					    continue;
 					}
+				}
+				if (digits == 4) {
+					continue;
 				}
 				return true;
 			}

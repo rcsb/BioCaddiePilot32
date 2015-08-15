@@ -13,6 +13,7 @@ import org.rcsb.spark.util.SparkUtils;
 
 
 public class MergeResults {
+	private static final int NUM_PARTITIONS = 4;
 
 	public static void main(String[] args) throws FileNotFoundException {
 		// Set up contexts.
@@ -49,7 +50,7 @@ public class MergeResults {
 		
 		long start = System.nanoTime();
 		
-		DataFrame union = subset0.unionAll(subset1).unionAll(subset2).unionAll(subset3).unionAll(subset4).unionAll(subset5).coalesce(40).cache();
+		DataFrame union = subset0.unionAll(subset1).unionAll(subset2).unionAll(subset3).unionAll(subset4).unionAll(subset5).coalesce(NUM_PARTITIONS).cache();
 //		union.groupBy("depositionYear").count().show(100);
 		union.filter("publicationYear IS NOT null").groupBy("publicationYear").count().show(100);
 //		union.groupBy("depositionYear").mean("publicationYear").show(100);
@@ -57,29 +58,26 @@ public class MergeResults {
 //		union.groupBy("depositionYear").max("publicationYear").show(100);
 		
 //		union.groupBy("pdbId", "pmcId").count().show(100);
-		DataFrame unique = union.dropDuplicates();
-		Map<String, String> aggregates = new HashMap<>();
-		aggregates.put("pdbId", "sum");
-//		unique.sort("pdbId").rollup("pdbId","pmcId").count().show(100);
+		DataFrame unique = union.distinct().cache();
 		DataFrame counts = unique.groupBy("pmcId").count().cache();
 //		counts.sort("count").show(100);
 		counts.sort("count").groupBy("count").count().show(100);
 
 	//	union.groupBy("depositionYear").agg(aggregates).show(100);
-		System.out.println("Unique pdbIds: " + union.select("pdbId").distinct().count());
-		System.out.println("Unique pmcIds: " + union.select("pmcId").distinct().count());
+		System.out.println("Unique pdbIds: " + unique.select("pdbId").distinct().count());
+		System.out.println("Unique pmcIds: " + unique.select("pmcId").distinct().count());
 		
-		DataFrame distinct = union.distinct();
-		System.out.println("Distinct mentions: " + distinct.count());
+		System.out.println("Distinct mentions: " + unique.count());
 		
 		 try {
-			 DataFrameToDelimitedFileWriter.write(args[6],  "\t", distinct);
+			 DataFrameToDelimitedFileWriter.write(args[6],  "\t", unique);
 			} catch (FileNotFoundException e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			}
 		
-		distinct.write().mode(SaveMode.Overwrite).parquet(args[7]);
+		unique.coalesce(NUM_PARTITIONS).write().mode(SaveMode.Overwrite).parquet(args[7]);
+		
 	    long end = System.nanoTime();
 	    System.out.println("Time: " + (end-start)/1E9 + " sec.");
 	    

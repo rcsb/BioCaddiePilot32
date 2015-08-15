@@ -16,6 +16,7 @@ import org.apache.spark.ml.classification.LogisticRegression;
 import org.apache.spark.ml.feature.HashingTF;
 import org.apache.spark.ml.feature.Tokenizer;
 import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics;
+import org.apache.spark.mllib.linalg.DenseVector;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.SQLContext;
 import org.rcsb.spark.util.SparkUtils;
@@ -23,7 +24,8 @@ import org.rcsb.spark.util.SparkUtils;
 import scala.Tuple2;
 
 public class PdbDataMentionTrainer {
-	private static final String exclusionFilter = "pdbId != '3DNA' AND pdbId NOT LIKE '%H2O'";
+	private static final String exclusionFilter = "pdbId != '3DNA' AND pdbId != '1AND' AND pdbId NOT LIKE '%H2O'";
+	private static final int NUM_PARTITIONS = 4;
 
 	public static void main(String[] args) throws FileNotFoundException {
 		// Set up contexts.
@@ -70,6 +72,7 @@ public class PdbDataMentionTrainer {
 		
 		DataFrame positives = positivesI.unionAll(positivesII);
 		DataFrame negatives = negativesI.unionAll(negativesII);
+//		DataFrame negatives = negativesI.unionAll(negativesII).sample(false, 0.1, 1);
 		writer.println("*** Positives, Negatives ***");
 		writer.println(train(sqlContext, positives, negatives, unassigned, args[6], args[7]));
 		writer.close();
@@ -99,11 +102,13 @@ public class PdbDataMentionTrainer {
 		e1.printStackTrace();
 	}
 
+
 	// predict on training data to evaluate goodness of fit
 	DataFrame trainingResults = model.transform(training).cache();
 
 	// predict on test set to evaluate goodness of fit
 	DataFrame testResults = model.transform(test).cache();	
+	testResults.printSchema();
 	
     StringBuilder sb = new StringBuilder();
 	sb.append(getMetrics(trainingResults, "Training\n"));
@@ -137,10 +142,17 @@ public class PdbDataMentionTrainer {
 	}
 
 	private static String getMetrics(DataFrame predictions, String text) {
+//		for (Row r: predictions.collect()) {
+//			  System.out.println("prob=" + r.getAs("probability"));
+//		}
 		JavaRDD<Tuple2<Object, Object>> scoresAndLabels = predictions.toJavaRDD().map(r -> new Tuple2<Object, Object>(r.getAs("prediction"), r.getAs("label"))).cache();
+//		JavaRDD<Tuple2<Object, Object>> scoresAndLabels = predictions.toJavaRDD().map(r -> new Tuple2<Object, Object>(((DenseVector)r.getAs("probability")).toArray()[0], r.getAs("label"))).cache();
 
 		BinaryClassificationMetrics metrics1 = new BinaryClassificationMetrics(JavaRDD.toRDD(scoresAndLabels));
         double roc = metrics1.areaUnderROC();
+//        for (Tuple2<Object, Object> t: metrics1.recallByThreshold().toJavaRDD().collect()) {
+//        	System.out.println(t);
+//        }
         
         // Evaluate true/false positives(1)/negatives(0)
         //                                                 prediction             label    
@@ -151,10 +163,11 @@ public class PdbDataMentionTrainer {
 
         double f1 = 2.0 * tp / (2*tp + fp + fn);
         double fpr = 1.0 * fp /(fp + tn);
+        double fnr = 1.0 * fn /(fn + tp);
         scoresAndLabels.unpersist();
         StringBuilder sb = new StringBuilder();
         sb.append("Binary Classification Metrics: " + text + "\n");
-        sb.append("Roc: " + roc + " F1: " + f1 + " FPR: " + fpr + " TP: " + tp + " TN: " + tn + " FP: " + fp + " FN: " + fn + "\n");
+        sb.append("Roc: " + roc + " F1: " + f1 + " FPR: " + fpr + " FNT: " + fnr + " TP: " + tp + " TN: " + tn + " FP: " + fp + " FN: " + fn + "\n");
         return sb.toString();
 	}
 }

@@ -1,5 +1,7 @@
 package org.biocaddie.datamention.mine;
 
+import java.util.Arrays;
+
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.Row;
@@ -10,6 +12,7 @@ import org.rcsb.spark.util.SparkUtils;
 
 public class PdbDataMentionTrainingSetGenerator
 {
+	private static int NUM_PARTITIONS = 1;
 	public static void main(String args[]) throws Exception
 	{
 		long start = System.nanoTime();
@@ -19,6 +22,7 @@ public class PdbDataMentionTrainingSetGenerator
 		SQLContext sqlContext = SparkUtils.getSqlContext(sc);
 
 		// Read data sources
+		System.out.println(Arrays.toString(args));
 
 		// dataMentions: pdbId, fileName, sentence, matchType;
 		DataFrame dataMentions = sqlContext.read().parquet(args[0]).cache();
@@ -65,23 +69,23 @@ public class PdbDataMentionTrainingSetGenerator
 
 		DataFrame positivesI = sqlContext.sql(
 				"SELECT m.pdbId, m.matchType, m.depositionYear, m.pmcId, m.pmId, m.publicationYear, m.primaryCitation, m.sentence, m.blindedSentence, 1.0 as label FROM Merged m WHERE m.primaryCitation = 1 AND m.publicationYear >= m.depositionYear").cache();
-		positivesI.coalesce(40).write().mode(SaveMode.Overwrite).parquet(args[4]);
+		positivesI.coalesce(NUM_PARTITIONS).write().mode(SaveMode.Overwrite).parquet(args[4]);
 		System.out.println("positiveI: " + positivesI.count());
 		
 		DataFrame positivesII = sqlContext.sql(
 				"SELECT m.pdbId, m.matchType, m.depositionYear, m.pmcId, m.pmId, m.publicationYear, m.primaryCitation, m.sentence, m.blindedSentence, 1.0 as label FROM Merged m WHERE m.matchType!='PDB_NONE' AND m.primaryCitation = 0 AND m.publicationYear>=m.depositionYear").cache();
 
 		System.out.println("positiveII: " + positivesII.count());
-		positivesII.coalesce(40).write().mode(SaveMode.Overwrite).parquet(args[5]);
+		positivesII.coalesce(NUM_PARTITIONS).write().mode(SaveMode.Overwrite).parquet(args[5]);
 
 		DataFrame negativesI = sqlContext.sql(
 				"SELECT m.pdbId, m.matchType, m.depositionYear, m.pmcId, m.pmId, m.publicationYear, m.primaryCitation, m.sentence, m.blindedSentence, 0.0 as label FROM Merged m WHERE m.entryType IS NOT null AND m.publicationYear<m.depositionYear").cache();
-		negativesI.coalesce(40).write().mode(SaveMode.Overwrite).parquet(args[6]);		
+		negativesI.coalesce(NUM_PARTITIONS).write().mode(SaveMode.Overwrite).parquet(args[6]);		
 		System.out.println("negativesI: " + negativesI.count());
 
 		DataFrame negativesII = sqlContext.sql(
 				"SELECT m.pdbId, m.matchType, m.depositionYear, m.pmcId, m.pmId, m.publicationYear, m.primaryCitation, m.sentence, m.blindedSentence, 0.0 as label FROM Merged m WHERE m.entryType IS null").cache();
-		negativesII.coalesce(40).write().mode(SaveMode.Overwrite).parquet(args[7]);			
+		negativesII.coalesce(NUM_PARTITIONS).write().mode(SaveMode.Overwrite).parquet(args[7]);			
 		System.out.println("negativeII: " + negativesII.count());
 
 		DataFrame validMentions = sqlContext.sql(
@@ -90,7 +94,7 @@ public class PdbDataMentionTrainingSetGenerator
 
 		System.out.println("mentions: " + validMentions.schema());
 		
-		validMentions.coalesce(40).write().mode(SaveMode.Overwrite).parquet(args[8]);	
+		validMentions.coalesce(NUM_PARTITIONS).write().mode(SaveMode.Overwrite).parquet(args[8]);	
 
 		System.out.println("time: " + (System.nanoTime()-start)/1E9 + " s");
 

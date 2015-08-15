@@ -36,6 +36,7 @@ public class PdbObsoleteInfoToParquet {
     private static final DateFormat inFormat = new SimpleDateFormat("dd-MMM-yy");
     private static final DateFormat outFormat1 = new SimpleDateFormat("yyyy-MM-dd");
     private static final DateFormat outFormat2 = new SimpleDateFormat("yyyy");
+    private static final int NUM_PARTITIONS = 4;
 
 	public static void main(String[] args) {
 		PdbObsoleteInfoToParquet downLoader = new PdbObsoleteInfoToParquet();
@@ -51,11 +52,11 @@ public class PdbObsoleteInfoToParquet {
 		entries.addAll(downloadCurrentModels());
 		entries.addAll(downloadObsoleteEntries());
 		
-		JavaRDD<PdbPrimaryCitation> rdd = sc.parallelize(entries);
+		JavaRDD<PdbPrimaryCitation> rdd = sc.parallelize(entries, NUM_PARTITIONS);
 		
 		// Apply a schema to an RDD of JavaBeans
 		DataFrame dataRecords = sqlContext.createDataFrame(rdd, PdbPrimaryCitation.class);
-		dataRecords.write().mode(SaveMode.Overwrite).parquet(parquetFileName);
+		dataRecords.coalesce(NUM_PARTITIONS).write().mode(SaveMode.Overwrite).parquet(parquetFileName);
 		
 		System.out.println(entries.size() + " PMC File records saved to: " + parquetFileName);
 	}

@@ -19,6 +19,7 @@ import org.rcsb.spark.util.SparkUtils;
 public class PdbPrimaryCitationToParquet {
 	private static final String CURRENT_URL = "http://www.rcsb.org/pdb/rest/customReport.csv?pdbids=*&customReportColumns=pmc,pubmedId,depositionDate&service=wsfile&format=csv&primaryOnly=1";
     private static final String UNRELEASED_URL = "http://www.rcsb.org/pdb/rest/getUnreleased";
+    private static final int NUM_PARTITIONS = 4;
 //    private static final String OBSOLETE_URL = "http://www.rcsb.org/pdb/rest/getObsolete";
 
 	
@@ -41,7 +42,7 @@ public class PdbPrimaryCitationToParquet {
 		
 		// Apply a schema to an RDD of JavaBeans
 		DataFrame dataRecords = sqlContext.createDataFrame(rdd, PdbPrimaryCitation.class);
-		dataRecords.write().mode(SaveMode.Overwrite).parquet(parquetFileName);
+		dataRecords.coalesce(NUM_PARTITIONS).write().mode(SaveMode.Overwrite).parquet(parquetFileName);
 		
 		System.out.println(entries.size() + " PMC File records saved to: " + parquetFileName);
 	}

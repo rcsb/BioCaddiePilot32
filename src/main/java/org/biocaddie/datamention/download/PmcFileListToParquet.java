@@ -18,6 +18,7 @@ import org.rcsb.spark.util.SparkUtils;
 public class PmcFileListToParquet {
 	private static final SimpleDateFormat dateFormat1 = new SimpleDateFormat("yyyy MMM dd");
 	private static final SimpleDateFormat dateFormat2 = new SimpleDateFormat("yyyy-MM-dd");
+	private static int NUM_PARTITIONS = 4;
 
     public static void main(String[] args) {
     	PmcFileListToParquet ptp = new PmcFileListToParquet();
@@ -34,7 +35,7 @@ public class PmcFileListToParquet {
 		
 		// Apply a schema to an RDD of JavaBeans
 		DataFrame dataRecords = sqlContext.createDataFrame(rdd, PmcFileEntry.class);
-		dataRecords.write().mode(SaveMode.Overwrite).parquet(parquetFileName);
+		dataRecords.coalesce(NUM_PARTITIONS).write().mode(SaveMode.Overwrite).parquet(parquetFileName);
 		
 		System.out.println(entries.size() + " PMC File records saved to: " + parquetFileName);
 	}
@@ -57,6 +58,11 @@ public class PmcFileListToParquet {
 				if (row.length == 5) {
 					Date publicationDate = getPublicationDate(row[1]);
 					Integer publicationYear = getPublicationYear(row[1]);
+					if (publicationYear == null) {
+						System.out.println("WARNING cannot parse publication year: " + line);
+						incomplete++;
+						continue;
+					}
 					Date updateDate = getUpdateDate(row[3]);
 
 					PmcFileEntry entry = new PmcFileEntry(trimFilePath(row[0]), row[1], row[2], row[4], 
@@ -67,6 +73,11 @@ public class PmcFileListToParquet {
 					// PubMed Id is missing, set to null
 						Date publicationDate = getPublicationDate(row[1]);
 						Integer publicationYear = getPublicationYear(row[1]);
+						if (publicationYear == null) {
+							System.out.println("WARNING cannot parse publication year: " + line);
+							incomplete++;
+							continue;
+						}
 						Date updateDate = getUpdateDate(row[3]);
 
 						PmcFileEntry entry = new PmcFileEntry(trimFilePath(row[0]), row[1], row[2], null, 

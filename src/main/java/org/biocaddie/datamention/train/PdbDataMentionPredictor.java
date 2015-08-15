@@ -10,9 +10,13 @@ import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SaveMode;
 import org.rcsb.spark.util.SparkUtils;
 
-
+/**
+ * 
+ * @author Peter Rose
+ *
+ */
 public class PdbDataMentionPredictor {
-	private static final String exclusionFilter = "pdbId != '3DNA' AND pdbId NOT LIKE '%H2O'";
+	private static final String exclusionFilter = "pdbId != '3DNA' AND pdbId != '1AND' AND pdbId NOT LIKE '%H2O'";
 
 	public static void main(String[] args) throws FileNotFoundException {
 		// Set up contexts.
@@ -41,6 +45,13 @@ public class PdbDataMentionPredictor {
 		sc.stop();
 	}
 
+	/**
+	 * Predict ....
+	 * @param sqlContext 
+	 * @param unassigned dataframe with unassigned date
+	 * @param modelFileName
+	 * @return
+	 */
 	private static DataFrame predict(SQLContext sqlContext, DataFrame unassigned, String modelFileName) {
 		PipelineModel model = null;
 		try {

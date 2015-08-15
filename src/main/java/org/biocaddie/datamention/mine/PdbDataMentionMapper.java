@@ -32,12 +32,10 @@ public class PdbDataMentionMapper implements FlatMapFunction<Tuple2<String, byte
 	@Override
 	public Iterable<DataMentionRecord> call(Tuple2<String, byte[]> tuple) throws Exception {
 		String document = new String(tuple._2,Charset.forName("UTF-8"));
-
 		List<DataMentionRecord> records = Collections.emptyList();
-		if (PDBFinder.containsPdbId(document)) {
-			String fileName = tuple._1;
-			records = getPdbSentences(document, fileName);
-		}
+		String fileName = tuple._1;
+		records = getPdbSentences(document, fileName);
+
 		return records;
 	}
 
@@ -58,13 +56,11 @@ public class PdbDataMentionMapper implements FlatMapFunction<Tuple2<String, byte
 		if (sentences != null) {
 			for (CoreMap cmSentence : sentences) {
 				String sentence = cmSentence.toString();
-				if (PDBFinder.containsPdbId(sentence) || sentence.contains("10.2210/pdb")) {
+// (PDBFinder.containsPdbId(sentence) || sentence.contains("10.2210/pdb")) {
+					if (PDBFinder.containsPdbId(sentence)) {
 					Set<String> pdbIds = PDBFinder.getPdbIds(sentence);
 					
 					String matchType = PDBFinder.getPdbMatchType(sentence);
-					if (sentence.contains("explore.cgi?pdbId=") || sentence.contains("structidSearch.do?structureId=")) {
-						System.out.println(matchType + ": " + sentence);
-					}
 					Boolean match = PDBFinder.isPositivePattern(matchType);
 					sentence = removeXmlTags(sentence);
 					String tSentence = trimNewLines(sentence);
@@ -108,10 +104,8 @@ public class PdbDataMentionMapper implements FlatMapFunction<Tuple2<String, byte
 	private static String getBlindedSentence(Set<String> pdbIds, String sentence) {
 		String blindedSentence = new String(sentence);
 		for (String pdbId: pdbIds) {
-//			blindedSentence = blindedSentence.replaceAll(pdbId, "1XXX");
 			blindedSentence = blindedSentence.replaceAll(pdbId, "XXXX");
 			String lcPdbId = pdbId.toLowerCase();
-//			blindedSentence = blindedSentence.replaceAll(lcPdbId, "1XXX");
 			blindedSentence = blindedSentence.replaceAll(lcPdbId, "XXXX");
 		}
 		return blindedSentence;
