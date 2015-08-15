@@ -1,4 +1,4 @@
-BioCADDIE Pilot 3.2
+BioCADDIE Pilot 3.2 ![picture alt](https://github.com/rcsb/BioCaddiePilot32/blob/master/src/main/resources/biocaddie-logo.png "Title is optional")
 ====
 
 ![picture alt](https://github.com/rcsb/BioCaddiePilot32/blob/master/src/main/resources/biocaddie-logo.png "Title is optional")
@@ -19,12 +19,12 @@ Data mentions are references to data sets in publications that fall into two cat
 Structured data mentions examples for Protein Data Bank Identifiers (PDB IDs)
 
 
-* Reference     | Example
+Reference     | Example
 ------------- |---------
-* PDB ID        | PDB ID: 1STP
-* PDB DOI       | http://dx.doi.org/10.2210/pdb1stp/pdb
-* RCSB PDB URL  | http://www.rcsb.org/../structureId=1stp
-* NXML External | Link RecordStructured data mentions | <ext-link .. ext-link-type=“pdb” xlink:href=“1STP”>
+PDB ID        | PDB ID: 1STP
+PDB DOI       | http://dx.doi.org/10.2210/pdb1stp/pdb
+RCSB PDB URL  | http://www.rcsb.org/../structureId=1stp
+NXML External | Link RecordStructured data mentions | <ext-link .. ext-link-type=“pdb” xlink:href=“1STP”>
 
 
 Unstructured data mentions
