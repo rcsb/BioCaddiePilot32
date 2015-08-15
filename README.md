@@ -30,7 +30,7 @@ Unstructured data mentions
 
 Type                | Example
 ------------------- | -------------
-Valid (PDB ID)      | `The structure of the active site of the K165C enzyme (**4AHQ**) ...`
+Valid (PDB ID)      | `The structure of the active site of the K165C enzyme (`**4AHQ`) ...`
 Invalid (Gene Name) | `The polymorphisms of cytochrome P450 **2C19** (CYP2C19) gene ...`
 
 
