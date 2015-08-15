@@ -44,7 +44,7 @@ Invalid (2C19)      | `The polymorphisms of cytochrome P450 **2C19** (CYP2C19) g
 This project is in active development. Expect major refactoring of current code.
 
 ##Want to Use or Contribute to this Project?
-[Contact us](pwrose@ucsd.edu)
+Contact us <pwrose@ucsd.edu>
 
 ##Technology Stack
 This project relies on the open-source technologies [Apache Spark][Spark] and [Apache Parquet][Parquet] to make literature data mining fast and parallelizable.
