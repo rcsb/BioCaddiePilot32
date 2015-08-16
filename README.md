@@ -5,11 +5,11 @@ BioCADDIE Pilot 3.2
 
 # Introduction
 
-The [BioCADDIE Pilot 3.2](https://biocaddie.org/group/pilot-project/pilot-project-3-2-development-citation-and-data-access-metrics-applied-rcsb/) is a data mining platform to cross-link data and publications that is part of the larger [BioCADDIE project](https://biocaddie.org/). This prototype project provides tools for extracting data set mentions from the [Protein Data Bank](http://www.rcsb.org/) in the full text publications of the [PubMedCentral](http://www.ncbi.nlm.nih.gov/pmc/) [Open Access Subset](http://www.ncbi.nlm.nih.gov/pmc/tools/openftlist/). It also offers tools to analyze citation networks in PubMedCentral using a number of network metrics.
+The [BioCADDIE Pilot 3.2](https://biocaddie.org/group/pilot-project/pilot-project-3-2-development-citation-and-data-access-metrics-applied-rcsb/) is a data mining platform to cross-link data and publications. This pilot project is part of the [BioCADDIE project](https://biocaddie.org/). This prototype provides tools for extracting data set mentions from the [Protein Data Bank](http://www.rcsb.org/) in the full text publications of the [PubMedCentral](http://www.ncbi.nlm.nih.gov/pmc/) [Open Access Subset](http://www.ncbi.nlm.nih.gov/pmc/tools/openftlist/). It also offers tools to analyze citation networks in PubMedCentral using a number of network metrics.
 
 This project operates on the following data sets
 
-* Protein Data Bank (PDB): >110,000 3D structure of biomolecules ([current list](http://www.rcsb.org/pdb/results/results.do?qrid=E5798DC6&tabtoshow=Current))
+* Protein Data Bank (PDB): >110,000 3D structure of biomolecules ([current list](http://www.rcsb.org/pdb/search/smartSubquery.do?experimentalMethod=ignore&smartSearchSubtype=HoldingsQuery&moleculeType=ignore))
 * PubMedCentral Open Access Subset: >1 million free text articles ([current list](http://www.ncbi.nlm.nih.gov/pmc/?term=open+access[filter]))
 
 ## What are Data Mentions?
@@ -28,16 +28,26 @@ NXML External Link | `<ext-link .. ext-link-type=“pdb” xlink:href=“1STP”
 
 Unstructured data mentions for PDB Identifiers
 
-Type                | Example
-------------------- | -------------
-Valid (4AHQ)        | `The structure of the active site of the K165C enzyme (4AHQ) ...`
-Invalid (2C19)      | `The polymorphisms of cytochrome P450 **2C19** (CYP2C19) gene ...`
+Type                       | Example
+-------------------------- | -------------
+Valid PDB ID (4AHQ)        | `The structure of the active site of the K165C enzyme (4AHQ) ...`
+Invalid PDB ID (2C19)      | `The polymorphisms of cytochrome P450 2C19 (CYP2C19) gene ...`
 
 
+## Data Mention Extraction for PDB IDs
+The extraction of data mentions involves the following steps
 
-**UNDER CONSTRUCTION**
+1. Download PDB and PMC metadata
+2. Download PMC OC articles
+3. Create positive and negative training/test sets for data mention disambiguation
+4. Fit machine learning model
+5. Predict PDB data mentions for all PMC OC
 
-[Citation Network Analysis](https://github.com/rcsb/BioCaddiePilot32/blob/master/src/main/java/NetworkAnalysis.md)
+[Data Mention Extraction details](https://github.com/rcsb/BioCaddiePilot32/blob/master/src/main/resources/DataMention.md)
+
+## Publication Network Analysis
+
+[Citation Network Analysis](https://github.com/rcsb/BioCaddiePilot32/blob/master/src/main/resources/NetworkAnalysis.md)
 
 ##Project Status
 
