@@ -1,15 +1,4 @@
-# BioCaddiePilot32
-
-[https://biocaddie.org/](https://biocaddie.org/)
-
-PILOT PROJECT 3.2 - DEVELOPMENT OF CITATION AND DATA ACCESS METRICS APPLIED TO RCSB PROTEIN DATA BANK AND RELATED RESOURCES
-
-LEADERS: PETER ROSE, PH.D. PROTEIN DATA BANK UCSD AND CHUN-NAN HSU, PH.D. DEPARTMENT OF BIOMEDICAL INFORMATICS UCSD
-
-Collaborator: Cathy Wu, Ph.D. and Cecilia Arighi, Ph.D. (non funded)
-
-
-
+## Network Analysis of PubMed Citation Networks
 
 
 This Readme file explains the usage of programs:
