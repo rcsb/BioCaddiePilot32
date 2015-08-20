@@ -20,9 +20,8 @@ import org.apache.spark.sql.types.DataTypes;
 import org.rcsb.spark.util.SparkUtils;
 
 /**
- * This class converts a PubMedCentral Open Access Subset file list, obtained from 
- * ftp://ftp.ncbi.nlm.nih.gov/pub/pmc/file_list.csv
- * to a Spark DataFrame and saves it as a .parquet file. It renames columns to have consistent
+ * This class uses RCSB PDB Tabular Report web services to retrieve data and saves them
+ * as Spark DataFrame in the .parquet file. It renames columns to have consistent
  * names throughout the entire toolset.
  * 
  * @author Peter Rose
