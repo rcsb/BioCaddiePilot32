@@ -3,7 +3,6 @@ package org.biocaddie.datamention.train;
 
 
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 
@@ -16,7 +15,6 @@ import org.apache.spark.ml.classification.LogisticRegression;
 import org.apache.spark.ml.feature.HashingTF;
 import org.apache.spark.ml.feature.Tokenizer;
 import org.apache.spark.mllib.evaluation.BinaryClassificationMetrics;
-import org.apache.spark.mllib.linalg.DenseVector;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.SQLContext;
 import org.rcsb.spark.util.SparkUtils;
@@ -27,7 +25,7 @@ public class PdbDataMentionTrainer {
 	private static final String exclusionFilter = "pdbId != '3DNA' AND pdbId != '1AND' AND pdbId NOT LIKE '%H2O'";
 	private static final int NUM_PARTITIONS = 4;
 
-	public static void main(String[] args) throws FileNotFoundException {
+	public static void main(String[] args) throws IOException {
 		// Set up contexts.
 		SparkContext sc = SparkUtils.getSparkContext();
 		SQLContext sqlContext = SparkUtils.getSqlContext(sc);
@@ -88,7 +86,7 @@ public class PdbDataMentionTrainer {
 	DataFrame all = positives.unionAll(negatives).filter(exclusionFilter);
 
 	// split into training and test sets
-	DataFrame[] split = all.randomSplit(new double[]{.8, .2}, 1); // changed seed from 1 to 2!!
+	DataFrame[] split = all.randomSplit(new double[]{.8, .2}, 1); 
 	DataFrame training = split[0].cache();	
 	DataFrame test = split[1].cache();
 
@@ -126,10 +124,11 @@ public class PdbDataMentionTrainer {
 		.setInputCol("blindedSentence")
 		.setOutputCol("words");
 		HashingTF hashingTF = new HashingTF()
-		.setNumFeatures(100000)
+	//	.setNumFeatures(100000)
 		.setInputCol(tokenizer.getOutputCol())
 		.setOutputCol("features");
 		LogisticRegression lr = new LogisticRegression()
+		.setTol(0.1)
 		.setMaxIter(50);
 //		.setMaxIter(25);
 
@@ -164,10 +163,14 @@ public class PdbDataMentionTrainer {
         double f1 = 2.0 * tp / (2*tp + fp + fn);
         double fpr = 1.0 * fp /(fp + tn);
         double fnr = 1.0 * fn /(fn + tp);
+        double sen = 1.0 * tp /(tp + fn);
+        double spc = 1.0 * tn /(tn + fp);
         scoresAndLabels.unpersist();
         StringBuilder sb = new StringBuilder();
         sb.append("Binary Classification Metrics: " + text + "\n");
-        sb.append("Roc: " + roc + " F1: " + f1 + " FPR: " + fpr + " FNT: " + fnr + " TP: " + tp + " TN: " + tn + " FP: " + fp + " FN: " + fn + "\n");
+        sb.append("Roc: " + roc + " F1: " + f1 + " SPC: " + spc + " SEN: " + sen + " FPR: " + fpr + " FNT: " + fnr + " TP: " + tp + " TN: " + tn + " FP: " + fp + " FN: " + fn + "\n");
         return sb.toString();
 	}
+	
+	
 }

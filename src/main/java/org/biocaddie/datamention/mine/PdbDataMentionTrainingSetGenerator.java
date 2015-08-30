@@ -7,7 +7,7 @@ import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SaveMode;
-import org.biocaddie.datamention.download.PmcFileEntry;
+import org.biocaddie.datamention.download.PmcMetaData;
 import org.rcsb.spark.util.SparkUtils;
 
 public class PdbDataMentionTrainingSetGenerator
@@ -18,7 +18,7 @@ public class PdbDataMentionTrainingSetGenerator
 		long start = System.nanoTime();
 
 		JavaSparkContext sc = SparkUtils.getJavaSparkContext();
-		sc.getConf().registerKryoClasses(new Class[]{PmcFileEntry.class});
+		sc.getConf().registerKryoClasses(new Class[]{PmcMetaData.class});
 		SQLContext sqlContext = SparkUtils.getSqlContext(sc);
 
 		// Read data sources

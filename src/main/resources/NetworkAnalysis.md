@@ -1,5 +1,6 @@
 ## Network Analysis of PubMed Citation Networks
 
+***UNDER CONSTRUCTION***
 
 This Readme file explains the usage of programs:
 
@@ -40,7 +41,7 @@ $ java org.biocaddie.citationanalysis.network.NetworkUtils 3 2008_2006_journal_c
 
 PART 3: NETWORK METRICS: For a given network in Pajek.net format, compute three types of metrics for each node: inDegree centrality(citation count), pageRank and betweenness centrality. 
 
-Call: java org.biocaddie.citationanalysis.network.NetworkMeasuresMetrics [flag] [network.net] [optional pageRankDampingFactor, default:0.5] <br>
+Call: `java org.biocaddie.citationanalysis.network.NetworkMeasuresMetrics [flag] [network.net] [optional pageRankDampingFactor, default:0.5]` <br>
 flag values= 1:pageRank 2:betweenness, 12: both pageRank and betweenness <br>
 $ java -Xmx28000m org.biocaddie.citationanalysis.network.NetworkMeasuresMetrics 1 2014_2012_paper_citation_network.net 0.5
 
@@ -73,7 +74,7 @@ PART 5: UTILITIES: Not all functions runnable from command-line, but
 
 GenerateDataForCharts.java class includes code for the following purposes:  
 
-Call: java org.biocaddie.citationanalysis.utility.GenerateDataForCharts [paperOrPdb] [pageRankorCiteCnt] [top100orOutliers] [network] [networkMetrics] [PdbIdPubMedId] <br>
+Call: `java org.biocaddie.citationanalysis.utility.GenerateDataForCharts [paperOrPdb] [pageRankorCiteCnt] [top100orOutliers] [network] [networkMetrics] [PdbIdPubMedId]` <br>
 [paperOrPdb]: 1:sort all papers  2: sort only PDB primary citations <br>
 [pageRankorCiteCnt]: 1:use pageRank  2: use CiteCount <br>
 [top100orOutliers]: 1:top100  2: outliers within top100

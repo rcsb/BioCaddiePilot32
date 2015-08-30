@@ -12,66 +12,78 @@ import org.apache.spark.sql.types.DataTypes;
 import org.rcsb.spark.util.SparkUtils;
 
 /**
- * This class converts a PubMedCentral Open Access Subset file list, obtained from 
- * ftp://ftp.ncbi.nlm.nih.gov/pub/pmc/file_list.csv
- * to a Spark DataFrame and saves it as a .parquet file. It renames columns to have consistent
- * names throughout the entire toolset.
+ * This class retrieves metadata for the PubMedCentral Open Access (PMC OC) files
+ * and saves it as a Spark DataFrame in Parquet format
+ * (http://spark.apache.org/docs/latest/sql-programming-guide.html). 
+ * File meta data are retrieved from a local copy of file_list.csv available from 
+ * ftp://ftp.ncbi.nlm.nih.gov/pub/pmc/file_list.csv.
+ * PMC OC is updated every Saturday. To get the latest data rerun this application
+ * every Saturday.
  * 
  * @author Peter Rose
  *
  */
 public class PmcFileMetadataToParquet {
+	private static String INPUT_FILE_NAME = "file_list.csv";
+	private static String OUTPUT_FILE_NAME = "PmcFileMetadata.parquet";
+	private static String OUTPUT_FORMAT = "parquet";
 
 	public static void main(String[] args) throws IOException {
-		PmcFileMetadataToParquet.downloadCsv(args[0]);
+		String inputDirectory = args[0];
+		String outputDirectory = args[1];
+		String inputFileName = inputDirectory + "/" + INPUT_FILE_NAME;
+		String outputFileName = outputDirectory + "/" + OUTPUT_FILE_NAME;
+		
+		PmcFileMetadataToParquet downloader = new PmcFileMetadataToParquet();
+		downloader.writeMetadata(inputFileName, outputFileName, OUTPUT_FORMAT);
 	}
 	
 	/**
-	 * 
-	 * @param fileName
-	 * @throws IOException
+	 * Parses PMC File metadata and writes results as a Spark DataFrame.
+	 * @param outputFileName output file name
+	 * @param outputFormat output format
 	 */
-	private static void downloadCsv(String fileName) throws IOException {
-		int index = fileName.lastIndexOf(".csv");
-		if (index < 1) {
-			throw new IOException("Invalid .csv file name: " + fileName);
-		}
-		
-		String outputFileName = fileName.substring(0,index) + ".parquet";
-	    System.out.println(fileName + " -> " + outputFileName);
-		
+	private void writeMetadata(String inputFileName, String outputFileName, String outputFormat) throws IOException {
+	    System.out.println(inputFileName + " -> " + outputFileName);
+		// setup Spark and Spark SQL
 		JavaSparkContext sc = SparkUtils.getJavaSparkContext();
 	    SQLContext sql = SparkUtils.getSqlContext(sc);
 	    
 	    // for options see https://github.com/databricks/spark-csv
-	    DataFrame df = sql.read()
+	    DataFrame metadata = sql.read()
 	    		.format("com.databricks.spark.csv")
 	    		.option("header", "true")
 	    		.option("inferSchema", "true")
-	    		.load(fileName);
+	    		.load(inputFileName);
 	    
-	    df = standardizeColumnNames(df);
-	    
-	    df = addFileNameColumn(sql, df);
-	    
-	    df = addLastUpdatedColumn(sql, df);
-	   
-	    // for now we only need these columns
-	    df = df.select("pmcId","pmId", "fileName", "lastUpdated");
-	    
-        df.printSchema();
-        df.show(5);
+	    // standardize column names and data
+	    metadata = standardizeColumnNames(metadata);	    
+	    metadata = addFileNameColumn(sql, metadata);	    
+	    metadata = addLastUpdatedColumn(sql, metadata);
+		metadata = SparkUtils.toRcsbConvention(metadata);
+		
+		// for now we only need these columns
+	    metadata = metadata.select("pmc_id", "pm_id", "file_name", "last_updated");
+		
+		// show schema and some sample data
+		metadata.printSchema();
+		metadata.show();
        
-	    df.write().format("parquet").mode(SaveMode.Overwrite).save(outputFileName);
+		// save DataFrame
+	    metadata.write().format(outputFormat).mode(SaveMode.Overwrite).save(outputFileName);
+	    
+	    System.out.println(metadata.count() + " Pmc file metadata records saved to: " + outputFileName);
+	    
+	    sc.close();
 	}
 
 	private static DataFrame standardizeColumnNames(DataFrame df) {
 		System.out.println("Original column names: " + Arrays.toString(df.columns()));
 	    df = df.withColumnRenamed("File", "file")
-	    		.withColumnRenamed("Article Citation", "articleCitation")
-	    		.withColumnRenamed("Accession ID", "pmcId")
-	    		.withColumnRenamed("Last Updated (YYYY-MM-DD HH:MM:SS)", "updateDate")
-	    	    .withColumnRenamed("PMID", "pmId");
+	    		.withColumnRenamed("Article Citation", "article_citation")
+	    		.withColumnRenamed("Accession ID", "pmc_id")
+	    		.withColumnRenamed("Last Updated (YYYY-MM-DD HH:MM:SS)", "update_date")
+	    	    .withColumnRenamed("PMID", "pm_id");
 
 		System.out.println("Standardized column names: " + Arrays.toString(df.columns()));
 		return df;
@@ -86,12 +98,12 @@ public class PmcFileMetadataToParquet {
  	 *
 	 * @param sql
 	 * @param df
-	 * @return
+	 * @return DataFrame
 	 */
 	private static DataFrame addFileNameColumn(SQLContext sql, DataFrame df) {
 		sql.registerDataFrameAsTable(df, "df");
         sql.udf().register("trim", (String s) -> s.substring(6,s.lastIndexOf(".tar")), DataTypes.StringType);
-        df = sql.sql("SELECT d.*, trim(d.file) as fileName FROM df as d");
+        df = sql.sql("SELECT d.*, trim(d.file) as file_name FROM df as d");
 		return df;
 	}
 	
@@ -104,15 +116,13 @@ public class PmcFileMetadataToParquet {
  	 *
 	 * @param sql
 	 * @param df
-	 * @return
+	 * @return DataFrame
 	 */
 	private static DataFrame addLastUpdatedColumn(SQLContext sql, DataFrame df) {
 		sql.registerDataFrameAsTable(df, "df");
         sql.udf().register("toDate", (String s) -> Timestamp.valueOf(s), DataTypes.TimestampType);
-        df = sql.sql("SELECT d.*, toDate(d.updateDate) as lastUpdated FROM df as d");
+        df = sql.sql("SELECT d.*, toDate(d.updateDate) as last_updated FROM df as d");
         df = df.drop("updateDate");
 		return df;
 	}
-	
-	
 }

@@ -13,8 +13,6 @@ public class PdbRegExFilter implements Function<Tuple2<String, byte[]>, Boolean>
 	@Override
 	public Boolean call(Tuple2<String, byte[]> data) throws Exception {
 		String document = new String(data._2,Charset.forName("UTF-8"));
-
-//		return PDBFinder.getPdbIds(document).size() > 0;
 		return PDBFinder.containsPdbId(document);
 	}
 

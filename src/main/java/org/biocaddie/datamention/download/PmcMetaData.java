@@ -3,8 +3,15 @@ package org.biocaddie.datamention.download;
 import java.io.Serializable;
 import java.sql.Date;
 
-public class PmcFileEntry implements Serializable {
+/**
+ * This class represents a Java Bean that holds PubMedCental article metadata.
+ * 
+ * @author Peter Rose
+ *
+ */
+public class PmcMetaData implements Serializable {
 	private static final long serialVersionUID = 1L;
+	
 	private String fileName;
 	private String citation;
 	private String pmcId;
@@ -13,7 +20,7 @@ public class PmcFileEntry implements Serializable {
 	private Date publicationDate;
 	private Date updateDate;
 
-	public PmcFileEntry(String fileName, String citation, String pmcId, String pmId, Integer publicationYear, Date publicationDate, Date updateDate) {
+	public PmcMetaData(String fileName, String citation, String pmcId, String pmId, Integer publicationYear, Date publicationDate, Date updateDate) {
 		this.fileName = fileName;
 		this.citation = citation;
 		this.pmcId = pmcId;

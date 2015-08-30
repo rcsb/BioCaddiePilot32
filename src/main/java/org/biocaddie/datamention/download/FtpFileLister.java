@@ -1,7 +1,5 @@
 package org.biocaddie.datamention.download;
 
-
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,6 +8,13 @@ import org.apache.commons.net.ftp.FTPClient;
 import org.apache.commons.net.ftp.FTPFile;
 import org.apache.commons.net.ftp.FTPReply;
 
+/**
+ * FTP utilities to list the files in an FTP directory structure
+ * Source: add source here ...
+ * 
+ * @author Peter Rose
+ *
+ */
 public class FtpFileLister {
 
 	/**

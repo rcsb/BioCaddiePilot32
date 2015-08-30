@@ -9,7 +9,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SaveMode;
-import org.biocaddie.datamention.download.TarFileReader;
+import org.biocaddie.datamention.download.PmcTarBallReader;
 import org.rcsb.spark.util.SparkUtils;
 
 import scala.Tuple2;
@@ -41,7 +41,7 @@ public class PdbDataMentionMiner
 		for (int i = 0; i < m; i++) {
 			System.out.println("Processing: " + args[i]);
 
-			TarFileReader reader = new TarFileReader(args[i], BATCH_SIZE);
+			PmcTarBallReader reader = new PmcTarBallReader(args[i], BATCH_SIZE);
 			
 			while (reader.hasNext()) {
 				List<Tuple2<String, byte[]>> tuples = reader.getNext();

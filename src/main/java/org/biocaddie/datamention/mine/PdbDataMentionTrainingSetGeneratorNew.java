@@ -7,7 +7,7 @@ import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SaveMode;
-import org.biocaddie.datamention.download.PmcFileEntry;
+import org.biocaddie.datamention.download.PmcMetaData;
 import org.rcsb.spark.util.SparkUtils;
 
 public class PdbDataMentionTrainingSetGeneratorNew
@@ -32,7 +32,6 @@ public class PdbDataMentionTrainingSetGeneratorNew
 		// pmcFileMetadata: pmcId, fileName, lastUpdated
 		System.out.println("reading:  " + args[1]);
 		DataFrame pmc1 = sqlContext.read().parquet(args[1]);
-	//	System.out.println("pmcFileMetadata records: " + pmc1.count());
 		
 		// pmcArticleMetadata: pmcId, pmId, publicationYear
 		System.out.println("reading:  " + args[2]);
@@ -44,17 +43,6 @@ public class PdbDataMentionTrainingSetGeneratorNew
 		System.out.println("pmc: " + pmc.count());
 		pmc.printSchema();
 		pmc.show();
-
-		// pmc: fileName, citation, pmcId, pmId, publicationYear, publicationDate, updateDate;
-//		DataFrame pmc = sqlContext.read().parquet(args[1]).cache();
-//		System.out.println("Pmc records: " + pmc.count());
-//		sqlContext.registerDataFrameAsTable(pmc, "Pmc");
-//		for (Row r: pmc.collect()) {
-//			if (r.getAs("pmcId") == null) {
-//			System.out.println(r);
-//			}
-//		}
-		
 
 		DataFrame superSet1 = sqlContext.sql(
 				"SELECT m.*, p.publicationYear, p.pmcId, p.pmId FROM Mentions m LEFT OUTER JOIN Pmc p ON m.fileName=p.fileName WHERE p.pmcId IS NOT null").cache();

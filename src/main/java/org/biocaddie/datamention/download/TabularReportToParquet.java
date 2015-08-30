@@ -1,9 +1,7 @@
 package org.biocaddie.datamention.download;
 
-import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.net.URL;
 import java.net.URLConnection;
@@ -11,7 +9,6 @@ import java.net.URLEncoder;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
-import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 
@@ -19,7 +16,6 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SaveMode;
-import org.apache.spark.sql.types.DataTypes;
 import org.rcsb.spark.util.SparkUtils;
 
 /**
@@ -27,13 +23,15 @@ import org.rcsb.spark.util.SparkUtils;
  * as Spark DataFrame in the .parquet file. It renames columns to have consistent
  * names throughout the entire toolset.
  * 
+ * *** UNDER CONSTRUCTION ***
+ * 
  * @author Peter Rose
  *
  */
 public class TabularReportToParquet {
 	public static final String SERVICELOCATION="http://www.rcsb.org/pdb/rest/customReport";
 	private static final String CURRENT_URL = "?pdbids=*&service=wsfile&format=csv&primaryOnly=1&customReportColumns=";
-//pmc,pubmedId,depositionDate
+
 	public static void main(String[] args) throws IOException {
 		String outputFileName = args[0];
 		
@@ -41,10 +39,6 @@ public class TabularReportToParquet {
 
 		downloader.createTempFile(outputFileName, Arrays.asList("pmc","pubmedId","depositionDate"));
 	}
-	
-//	public DataFrame createTabularReport(List<String> columnNames) {
-//           String url = getUrl(columnNames);
-//	}
 	
 	public void createTempFile(String outputFileName, List<String> columnNames) throws IOException {
 		String query = getUrl(columnNames);
@@ -143,6 +137,11 @@ public class TabularReportToParquet {
 	    		.option("inferSchema", "true")
 	    		.load(inputFileName);
 	        
+        df.printSchema();
+        df.show(5);
+        
+        df = SparkUtils.toRcsbConvention(df);
+        
         df.printSchema();
         df.show(5);
        

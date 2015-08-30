@@ -1,4 +1,4 @@
-package org.biocaddie.datamention.mine;
+package org.biocaddie.datamention.analysis;
 
 import java.sql.Date;
 import java.util.Arrays;
@@ -12,20 +12,27 @@ import java.util.Set;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.mllib.linalg.Vector;
+import org.apache.spark.mllib.linalg.Vectors;
+import org.apache.spark.mllib.linalg.distributed.BlockMatrix;
+import org.apache.spark.mllib.linalg.distributed.CoordinateMatrix;
+import org.apache.spark.mllib.linalg.distributed.IndexedRowMatrix;
+import org.apache.spark.mllib.linalg.distributed.MatrixEntry;
+import org.apache.spark.mllib.linalg.distributed.RowMatrix;
+import org.apache.spark.rdd.RDD;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
-import org.apache.spark.sql.SaveMode;
 import org.biocaddie.datamention.download.PmcTarBallReader;
 import org.rcsb.spark.util.SparkUtils;
 
 import scala.Tuple2;
 
-public class RcsbPdbDataMentionMiner
+public class PcmFindSimilarPapers
 {
 	private static final int NUM_THREADS = 4;
 	private static final int NUM_TASKS = 3;
-	private static final int BATCH_SIZE = 25000;
+	private static final int BATCH_SIZE = 100;
 	
 	private String pmcFileName;
 	private String outputFileName;
@@ -43,7 +50,7 @@ public class RcsbPdbDataMentionMiner
 	{
 		long start = System.nanoTime();
 		
-		RcsbPdbDataMentionMiner miner = new RcsbPdbDataMentionMiner();
+		PcmFindSimilarPapers miner = new PcmFindSimilarPapers();
 		
 		miner.parseCommandLine(args);
 		
@@ -129,7 +136,9 @@ public class RcsbPdbDataMentionMiner
 	}
 		
 	public void mine() throws Exception
-	{		
+	{
+		Set<String> uniqueFileNames = new HashSet<>();
+		
         boolean firstBatch = true;
 
 		int count = 0;
@@ -149,25 +158,75 @@ public class RcsbPdbDataMentionMiner
 				
 				JavaPairRDD<String, byte[]> data = sparkContext.parallelizePairs(tuples, NUM_THREADS*NUM_TASKS);
 				
-				JavaRDD<DataMentionRecord> records = data
-				.filter(new PdbRegExFilter())
-				.flatMap(new PdbDataMentionMapper());
+				JavaPairRDD<String, Vector> tf = data.mapValues(new PmcArticleHasher());
+//				tf.foreach(v -> System.out.println(v));
+				
+				
+				
+				List<Vector> v = tf.values().collect();
+				System.out.println("v size: " + v.size());
+				List<String> f = tf.keys().collect();
+				RowMatrix m = new RowMatrix(tf.values().rdd());
+				CoordinateMatrix s = m.columnSimilarities(0.0);
+				JavaRDD<MatrixEntry> entries = s.entries().toJavaRDD().filter(e -> e.value() > 0.9);
+				System.out.println("columnsimilarities: " + entries.count());
+//				entries.foreach(e -> System.out.println(e));
+//				List<MatrixEntry> list = entries.collect();
+//			
+//				for (MatrixEntry e: list) {
+//					System.out.println(e.i() + " - " + e.j());
+//					double[] vi = v.get((int)e.i()).toArray();
+//					double[] vj = v.get((int)e.j()).toArray();
+//					double li = Math.sqrt(dot(vi, vi));
+//					double lj = Math.sqrt(dot(vj, vj));
+//					double cos = dot(vi, vj)/ (li * lj);
+//					System.out.println("cos: " + cos + ": " + e.value());
+//				}
+
+	//			System.out.println(columnSimilarities.toString());
+				int ct = 0;
+				for (int i = 0; i < v.size()-1; i++) {;
+					double[] vi = v.get(i).toArray();
+					double li = Math.sqrt(dot(vi, vi));
+					for (int j = i + 1; j < v.size(); j++) {
+						double[] vj = v.get(j).toArray();
+						double lj = Math.sqrt(dot(vj, vj));
+	                    double cos = dot(vi, vj)/ (li * lj);
+
+	                    if (cos > 0.9) {
+						System.out.println(f.get(i) + " - " + f.get(j) + ": " + cos);
+						ct++;
+	                    }
+					}
+				}
+				System.out.println("Cos-similarity: " + ct);
+//				JavaRDD<DataMentionRecord> records = data
+//				.filter(new PdbRegExFilter())
+//				.flatMap(new PdbDataMentionMapper());
 				
 				// Apply a schema to an RDD of JavaBeans and register it as a table.
-				DataFrame dataRecords = sqlContext.createDataFrame(records, DataMentionRecord.class);
+//				DataFrame dataRecords = sqlContext.createDataFrame(records, DataMentionRecord.class);
 				
 				if (firstBatch) {
 					System.out.println("new records");
-					dataRecords.write().mode(SaveMode.Overwrite).parquet(getOutputFileName());
+//					dataRecords.write().mode(SaveMode.Overwrite).parquet(getOutputFileName());
 					firstBatch = false;
 				} else {
 					System.out.println("appending records");
-					dataRecords.write().mode(SaveMode.Append).parquet(getOutputFileName());
+//					dataRecords.write().mode(SaveMode.Append).parquet(getOutputFileName());
 				}
 			}
 		}
 		
 		System.out.println("Processed records: " + count);
+	}
+	
+	private double dot(double[] a, double[] b) {
+		double sum = 0;
+		for (int i = 0; i < a.length; i++) {
+			sum += a[i] * b[i];
+		}
+		return sum;
 	}
 	
 	private List<Tuple2<String, byte[]>> trimRedundantRecords(List<Tuple2<String, byte[]>> tuples) {
@@ -200,7 +259,7 @@ public class RcsbPdbDataMentionMiner
 	
 	private void initializeSpark() {
 		sparkContext = SparkUtils.getJavaSparkContext();
-		sparkContext.getConf().registerKryoClasses(new Class[]{DataMentionRecord.class});
+//		sparkContext.getConf().registerKryoClasses(new Class[]{DataMentionRecord.class});
 		sqlContext = SparkUtils.getSqlContext(sparkContext);
 	}
 	

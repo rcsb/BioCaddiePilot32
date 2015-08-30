@@ -1,13 +1,18 @@
 package org.biocaddie.datamention.download;
 
-
-
 import java.io.Serializable;
 import java.sql.Date;
 
-public class PdbPrimaryCitation implements Serializable {
+/**
+ * This class represents a Java Bean that holds PDB Entry metadata.
+ * 
+ * @author Peter Rose
+ *
+ */
+public class PdbMetaData implements Serializable {
 	private static final long serialVersionUID = 1L;
 	
+	// Type of PDB entry
 	public static final Integer CURRENT = 1;
 	public static final Integer OBSOLETE = 2;
 	public static final Integer UNRELEASED = 3;
@@ -22,9 +27,9 @@ public class PdbPrimaryCitation implements Serializable {
 	private Date depositionDate;
 	private Integer entryType;
 
-	public PdbPrimaryCitation(){};
+	public PdbMetaData(){};
 	
-	public PdbPrimaryCitation(String pdbId, String pmcId, String pmId,
+	public PdbMetaData(String pdbId, String pmcId, String pmId,
 			Integer depositionYear, Date depositionDate, Integer entryType) {
 		this.pdbId = pdbId;
 		this.pmcId = pmcId;

@@ -1,7 +1,5 @@
 package org.biocaddie.datamention.download;
 
-
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.net.URL;
@@ -16,41 +14,77 @@ import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SaveMode;
 import org.rcsb.spark.util.SparkUtils;
 
-public class PdbPrimaryCitationToParquet {
-	private static final String CURRENT_URL = "http://www.rcsb.org/pdb/rest/customReport.csv?pdbids=*&customReportColumns=pmc,pubmedId,depositionDate&service=wsfile&format=csv&primaryOnly=1";
-    private static final String UNRELEASED_URL = "http://www.rcsb.org/pdb/rest/getUnreleased";
-    private static final int NUM_PARTITIONS = 4;
-//    private static final String OBSOLETE_URL = "http://www.rcsb.org/pdb/rest/getObsolete";
+/**
+ * This class retrieves metadata for released and unreleased PDB entries using RCSB PDB web services
+ * and saves it as a Spark DataFrame in Parquet format
+ * (http://spark.apache.org/docs/latest/sql-programming-guide.html).
+ * PDB entries are updated every Wednesday around 00:00 UCT. To get the latest data rerun this application
+ * every Wednesday.
+ * 
+ * @author Peter Rose
+ */
 
+public class PdbCurrentMetadataToParquet {
+	private static String OUTPUT_FILE_NAME = "PdbCurrentMetaData.parquet";
+	private static String OUTPUT_FORMAT = "parquet";
 	
-    public static void main(String[] args) {
-	    	PdbPrimaryCitationToParquet ptp = new PdbPrimaryCitationToParquet();
-	    	ptp.writeToParquet(args[0]);
- }
+	private static final String CURRENT_URL = "http://www.rcsb.org/pdb/rest/customReport.csv?pdbids=*&customReportColumns=pmc,pubmedId,depositionDate&service=wsfile&format=csv&primaryOnly=1";
+	private static final String UNRELEASED_URL = "http://www.rcsb.org/pdb/rest/getUnreleased";
+	private static final int NUM_PARTITIONS = 4;
 
-	public void writeToParquet(String parquetFileName) {		
+	public static void main(String[] args) {
+		String outputDirectory = args[0];
+		String outputFileName = outputDirectory + "/" + OUTPUT_FILE_NAME;
+		
+		PdbCurrentMetadataToParquet downloader = new PdbCurrentMetadataToParquet();
+		downloader.writeMetadata(outputFileName, OUTPUT_FORMAT);
+	}
+	
+	/**
+	 * Parses PDB metadata and writes results as a Spark DataFrame.
+	 * @param outputFileName output file name
+	 * @param outputFormat output format
+	 */
+	public void writeMetadata(String outputFileName, String outputFormat) {
+		// setup Spark and Spark SQL
 		JavaSparkContext sc = SparkUtils.getJavaSparkContext();
-		sc.getConf().registerKryoClasses(new Class[]{PdbPrimaryCitation.class});
-		
 		SQLContext sqlContext = SparkUtils.getSqlContext(sc);
-		
-		List<PdbPrimaryCitation> entries = downloadPrimaryCitations();
+		// register custom class with Kryo serializer for best performance
+		sc.getConf().registerKryoClasses(new Class[]{PdbMetaData.class});
+
+		// download metadata
+		List<PdbMetaData> entries = downloadReleased();
 		entries.addAll(downloadUnreleased());
-//		entries.addAll(downloadObsolete());
+
+		// convert list to a distributed data object
+		JavaRDD<PdbMetaData> rdd = sc.parallelize(entries, NUM_PARTITIONS);
+
+		// Convert RDD to a DataFrame using a Java Bean as the schema definition
+		DataFrame metadata = sqlContext.createDataFrame(rdd, PdbMetaData.class);
 		
-		JavaRDD<PdbPrimaryCitation> rdd = sc.parallelize(entries);
+	    // standardize column names
+		metadata = SparkUtils.toRcsbConvention(metadata);
 		
-		// Apply a schema to an RDD of JavaBeans
-		DataFrame dataRecords = sqlContext.createDataFrame(rdd, PdbPrimaryCitation.class);
-		dataRecords.coalesce(NUM_PARTITIONS).write().mode(SaveMode.Overwrite).parquet(parquetFileName);
+		// show schema and some sample data
+		metadata.printSchema();
+		metadata.show();
 		
-		System.out.println(entries.size() + " PMC File records saved to: " + parquetFileName);
+		// save DataFrame
+//		metadata.coalesce(NUM_PARTITIONS).write().mode(SaveMode.Overwrite).parquet(fileName);
+	    metadata.write().format(outputFormat).mode(SaveMode.Overwrite).save(outputFileName);
+
+		sc.close();
+		
+		System.out.println(entries.size() + " PDB metadata records saved to: " + outputFileName);
 	}
 
-	
-	private List<PdbPrimaryCitation> downloadPrimaryCitations() {
-		List<PdbPrimaryCitation> citations = new ArrayList<>();
-		
+    /**
+     * Returns a list of metadata for released PDB entries
+     * @return list of metadata objects
+     */
+	private List<PdbMetaData> downloadReleased() {
+		List<PdbMetaData> citations = new ArrayList<>();
+
 		try {
 			URL u = new URL(CURRENT_URL);
 			BufferedReader reader = new BufferedReader(
@@ -66,7 +100,13 @@ public class PdbPrimaryCitationToParquet {
 				if (! row[0].startsWith("structureId")) {
 					String pdbId = removeQuotes(row[0]);
 					String pmcId = removeQuotes(row[1]);
+					if (pmcId.isEmpty()) {
+						pmcId = null;
+					}
 					String pmId = removeQuotes(row[2]);
+					if (pmId.isEmpty()) {
+						pmId = null;
+					}
 					String date = removeQuotes(row[3]);
 					if (date.length() < 4) {
 						System.err.println("WARNING: Skiping invalid deposition date in: " + date);
@@ -80,9 +120,9 @@ public class PdbPrimaryCitationToParquet {
 						continue;
 					}
 					Date depositionDate = Date.valueOf(date);
-					
-					PdbPrimaryCitation citation = new PdbPrimaryCitation(pdbId, pmcId, pmId, depositionYear, depositionDate, PdbPrimaryCitation.CURRENT);
-					
+
+					PdbMetaData citation = new PdbMetaData(pdbId, pmcId, pmId, depositionYear, depositionDate, PdbMetaData.CURRENT);
+
 					citations.add(citation);
 				}
 			}
@@ -92,10 +132,14 @@ public class PdbPrimaryCitationToParquet {
 		}
 		return citations;
 	}
-	
-	private List<PdbPrimaryCitation> downloadUnreleased() {
-		List<PdbPrimaryCitation> citations = new ArrayList<>();
-		
+
+    /**
+     * Returns a list of metadata for unreleased PDB entries
+     * @return list of metadata objects
+     */
+	private List<PdbMetaData> downloadUnreleased() {
+		List<PdbMetaData> citations = new ArrayList<>();
+
 		try {
 			URL u = new URL(UNRELEASED_URL);
 			BufferedReader reader = new BufferedReader(
@@ -108,7 +152,7 @@ public class PdbPrimaryCitationToParquet {
 			while ((line = reader.readLine()) != null) {
 				int beginIndex = line.indexOf("structureId=\"");
 				if (beginIndex > 0) {
-				   pdbId = line.substring(beginIndex + 13, beginIndex + 17);
+					pdbId = line.substring(beginIndex + 13, beginIndex + 17);
 				}
 				beginIndex = line.indexOf("initialDepositionDate=\"");
 				if (beginIndex > 0) {
@@ -117,12 +161,12 @@ public class PdbPrimaryCitationToParquet {
 					Date depositionDate = null;
 					try {
 						depositionDate = Date.valueOf(date);
-					    depositionYear = Integer.valueOf(line.substring(beginIndex + 23, beginIndex + 27));
+						depositionYear = Integer.valueOf(line.substring(beginIndex + 23, beginIndex + 27));
 					} catch (Exception e) {
 						System.out.println("Unreleased PDB " + pdbId + ": unparsable date: " + date);
 					}
-				
-					PdbPrimaryCitation citation = new PdbPrimaryCitation(pdbId, null, null, depositionYear, depositionDate, PdbPrimaryCitation.UNRELEASED);
+
+					PdbMetaData citation = new PdbMetaData(pdbId, null, null, depositionYear, depositionDate, PdbMetaData.UNRELEASED);
 					citations.add(citation);
 				}
 			}
@@ -132,7 +176,7 @@ public class PdbPrimaryCitationToParquet {
 		}
 		return citations;
 	}
-	
+
 	private static String removeQuotes(String string) {
 		return string.replaceAll("\"", "");
 	}

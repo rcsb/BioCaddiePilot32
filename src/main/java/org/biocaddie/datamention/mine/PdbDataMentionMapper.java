@@ -1,7 +1,8 @@
 package org.biocaddie.datamention.mine;
 
-
-
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -12,21 +13,29 @@ import java.util.Set;
 import org.apache.spark.api.java.function.FlatMapFunction;
 import org.biocaddie.PDBTools.PDBFinder;
 
+import scala.Tuple2;
 import edu.stanford.nlp.ling.CoreAnnotations;
 import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
 import edu.stanford.nlp.util.CoreMap;
-import scala.Tuple2;
 
+/**
+ * This class maps a tuple (fileName, document) to a list of PDB data mention records.
+ * The document is represented by a byte array that contains text encoded in UTF-8 format
+ * and can either be in XML or plain text format.
+ * 
+ * @author Peter Rose
+ *
+ */
 public class PdbDataMentionMapper implements FlatMapFunction<Tuple2<String, byte[]>, DataMentionRecord> {
 	private static final long serialVersionUID = 1L;
 	private static StanfordCoreNLP textPipeline;
+	private static List<String> stopWords;
 	static {
 		Properties props = new Properties();
-		props.setProperty("annotators", "tokenize, ssplit"); // does order mapper, moved cleanxml first
-//		props.setProperty("clean.xmltags", ".*"); // this doesn't work
-//		props.setProperty("clean.allowflawedxml", "true"); // this doesn't work
+		props.setProperty("annotators", "tokenize, ssplit");
 		textPipeline = new StanfordCoreNLP(props);
+		stopWords = loadStopWords();
 	}
 
 	@Override
@@ -42,41 +51,52 @@ public class PdbDataMentionMapper implements FlatMapFunction<Tuple2<String, byte
 	private static List<DataMentionRecord> getPdbSentences(String document, String fileName) {	
 		List<DataMentionRecord> list = new ArrayList<>();
 
-//		document = removeXmlTags(document); 
+		List<CoreMap> sentences = splitIntoSentences(document, fileName);
+
+		for (CoreMap cmSentence : sentences) {
+			String sentence = cmSentence.toString();
+
+			if (PDBFinder.containsPdbId(sentence)) {
+				Set<String> pdbIds = PDBFinder.getPdbIds(sentence);
+
+				String matchType = PDBFinder.getPdbMatchType(sentence);
+				Boolean match = PDBFinder.isPositivePattern(matchType);
+				sentence = removeXmlTags(sentence);
+				String tSentence = trimExtraCharacters(sentence);
+				String bSentence = getBlindedSentence(pdbIds, tSentence);
+				//		bSentence = removeStopWords(bSentence);
+
+
+				for (String pdbId: pdbIds) {
+					DataMentionRecord record = new DataMentionRecord(pdbId, fileName, tSentence, bSentence, matchType, match);
+					list.add(record);
+				}
+			} 
+		}
+		return list;
+	}
+
+	private static List<CoreMap> splitIntoSentences(String document, String fileName) {
+		List<CoreMap> sentences = Collections.emptyList();
 		Annotation annotation = new Annotation(document);
 		try {
 			textPipeline.annotate(annotation);
 		} catch (Exception e) {
 			System.out.println(fileName + ": " + e.getMessage());
-			return list;
+			return sentences;
 		}
 
-		List<CoreMap> sentences = annotation.get(CoreAnnotations.SentencesAnnotation.class);
-
-		if (sentences != null) {
-			for (CoreMap cmSentence : sentences) {
-				String sentence = cmSentence.toString();
-// (PDBFinder.containsPdbId(sentence) || sentence.contains("10.2210/pdb")) {
-					if (PDBFinder.containsPdbId(sentence)) {
-					Set<String> pdbIds = PDBFinder.getPdbIds(sentence);
-					
-					String matchType = PDBFinder.getPdbMatchType(sentence);
-					Boolean match = PDBFinder.isPositivePattern(matchType);
-					sentence = removeXmlTags(sentence);
-					String tSentence = trimNewLines(sentence);
-					String bSentence = getBlindedSentence(pdbIds, tSentence);
-
-					for (String pdbId: pdbIds) {
-						DataMentionRecord record = new DataMentionRecord(pdbId, fileName, tSentence, bSentence, matchType, match);
-						list.add(record);
-					}
-				} 
-			}
-		}
-		return list;
+		sentences = annotation.get(CoreAnnotations.SentencesAnnotation.class);
+		
+		return sentences;
 	}
 
-	private static String trimNewLines(String sentence) {
+	/**
+	 * Trims newlines, tabs, and extra spaces from a sentence.
+	 * @param sentence
+	 * @return
+	 */
+	private static String trimExtraCharacters(String sentence) {
 		sentence = sentence.replaceAll("\n", " ");
 		sentence = sentence.replaceAll("\t", " ");
 		int length;
@@ -85,29 +105,47 @@ public class PdbDataMentionMapper implements FlatMapFunction<Tuple2<String, byte
 			sentence = sentence.replaceAll("  ", " ");
 
 		} while (sentence.length() < length);
-		return sentence;
+		
+		return sentence.trim();
 	}
 	
-	public static void printXmlTags(String sentence) {
-		if (sentence.contains("<ext-link ext-link-type=\"pdb\" xlink:href=\"") ) {
-        String matchType = PDBFinder.getPdbMatchType(sentence);
-//		if (sentence.contains("<ext-link ext-link-type=\"pdb\" xlink:href=\"....\">") ) {
-//		if (sentence.contains("<ext-link ext-link-type=\"pdb\" xlink:href=\"") ) {
-//	if (matchType.equals("EXT_LINK")) {
-			System.out.println(matchType + ": " + sentence);
-		}
-	}
 	public static String removeXmlTags(String sentence) {	
 		return sentence.replaceAll("<.*?>", " ");
 	}
 
 	private static String getBlindedSentence(Set<String> pdbIds, String sentence) {
 		String blindedSentence = new String(sentence);
+		blindedSentence = blindedSentence.toLowerCase();
 		for (String pdbId: pdbIds) {
-			blindedSentence = blindedSentence.replaceAll(pdbId, "XXXX");
 			String lcPdbId = pdbId.toLowerCase();
 			blindedSentence = blindedSentence.replaceAll(lcPdbId, "XXXX");
 		}
 		return blindedSentence;
+	}
+	
+	private static List<String> loadStopWords() {
+		List<String> stopWords = new ArrayList<String>();
+		BufferedReader reader = null;
+		try {
+		reader = new BufferedReader(new InputStreamReader(PdbDataMentionMiner.class.getResourceAsStream("/stopword.csv")));
+		String line = null;
+			while ((line = reader.readLine()) != null) {
+				stopWords.add(line.trim());
+				System.out.println(line);
+			}
+			reader.close();
+		} catch (IOException e) {
+			System.err.println("Error loading stopwords " + e.getMessage());
+		}
+
+		return stopWords;
+	}
+
+	private static String removeStopWords(String sentence) {
+		String lcSentence = sentence.toLowerCase();
+		for (String s: stopWords) {
+			lcSentence = lcSentence.replaceAll("\\b" + s + "\\b", "");
+		}
+		return lcSentence;
 	}
 }
