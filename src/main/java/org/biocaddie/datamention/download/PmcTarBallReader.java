@@ -79,7 +79,7 @@ public class PmcTarBallReader {
 
 			String filename = trimFilePath(entry.getName());
 			Date update = updateMap.get(filename);
-			if (update != null && update.before(lastUpdated)) {
+			if (update != null && lastUpdated != null && update.before(lastUpdated)) {
 				continue;
 			}
 			byte[] content = new byte[(int) entry.getSize()];
