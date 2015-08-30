@@ -1,6 +1,7 @@
 package org.biocaddie.datamention.download;
 
 import java.io.IOException;
+import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.Arrays;
 
@@ -59,7 +60,7 @@ public class PmcFileMetadataToParquet {
 	    // standardize column names and data
 	    metadata = standardizeColumnNames(metadata);	    
 	    metadata = addFileNameColumn(sql, metadata);	    
-	    metadata = stringToTimestamp(sql, metadata);
+	    metadata = stringToDate(sql, metadata);
 		metadata = SparkUtils.toRcsbConvention(metadata);
 		
 		// for now we only need these columns
@@ -108,7 +109,7 @@ public class PmcFileMetadataToParquet {
 	}
 	
 	/**
-	 * Temporary fix: Converts the updateDate column to a timestamp format.
+	 * Temporary fix: Converts the updateDate column to a Date format.
 	 * (This is a missing feature in the .csv reader, I've filed a Jira ticket).
 	 * 
 	 * Example:
@@ -118,9 +119,10 @@ public class PmcFileMetadataToParquet {
 	 * @param df
 	 * @return DataFrame
 	 */
-	private static DataFrame stringToTimestamp(SQLContext sql, DataFrame df) {
+	private static DataFrame stringToDate(SQLContext sql, DataFrame df) {
 		sql.registerDataFrameAsTable(df, "df");
-        sql.udf().register("toDate", (String s) -> Timestamp.valueOf(s), DataTypes.TimestampType);
+ //       sql.udf().register("toDate", (String s) -> Timestamp.valueOf(s), DataTypes.TimestampType);
+        sql.udf().register("toDate", (String s) -> Date.valueOf(s), DataTypes.DateType);
         df = sql.sql("SELECT d.*, toDate(d.update_date) as last_updated FROM df as d");
         df = df.drop("update_date");
         df = df.withColumnRenamed("last_updated", "update_date");

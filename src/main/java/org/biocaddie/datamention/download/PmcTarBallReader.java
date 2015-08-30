@@ -114,7 +114,6 @@ public class PmcTarBallReader {
 
 		DirectoryStream<Path> directoryStream = Files.newDirectoryStream(Paths.get(directory));
 		for (Path path : directoryStream) {
-			System.out.println(path);
 			if (path.toString().endsWith(".tar.gz")) {
 				fileNames.add(path.toString());
 			}
