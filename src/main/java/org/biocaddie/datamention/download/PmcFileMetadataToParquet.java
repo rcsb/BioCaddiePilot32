@@ -121,8 +121,8 @@ public class PmcFileMetadataToParquet {
 	private static DataFrame addLastUpdatedColumn(SQLContext sql, DataFrame df) {
 		sql.registerDataFrameAsTable(df, "df");
         sql.udf().register("toDate", (String s) -> Timestamp.valueOf(s), DataTypes.TimestampType);
-        df = sql.sql("SELECT d.*, toDate(d.updateDate) as last_updated FROM df as d");
-        df = df.drop("updateDate");
+        df = sql.sql("SELECT d.*, toDate(d.update_date) as last_updated FROM df as d");
+        df = df.drop("update_date");
 		return df;
 	}
 }
