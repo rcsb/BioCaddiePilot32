@@ -59,7 +59,7 @@ public class PmcFileMetadataToParquet {
 	    // standardize column names and data
 	    metadata = standardizeColumnNames(metadata);	    
 	    metadata = addFileNameColumn(sql, metadata);	    
-	    metadata = addLastUpdatedColumn(sql, metadata);
+	    metadata = stringToTimestamp(sql, metadata);
 		metadata = SparkUtils.toRcsbConvention(metadata);
 		
 		// for now we only need these columns
@@ -108,21 +108,22 @@ public class PmcFileMetadataToParquet {
 	}
 	
 	/**
-	 * Adds a lastUpdated column to the data frame. It converts the updateDate column to a timestamp 
-	 * format and and adds it as lastUpdated column to the data frame. It then delete the updateDate column.
+	 * Temporary fix: Converts the updateDate column to a timestamp format.
+	 * (This is a missing feature in the .csv reader, I've filed a Jira ticket).
 	 * 
 	 * Example:
-	 * updateDate: "2013-03-19 14:51:52" -> lastUpdated: "2013-03-19"
+	 * "2013-03-19 14:51:52" -> "2013-03-19"
  	 *
 	 * @param sql
 	 * @param df
 	 * @return DataFrame
 	 */
-	private static DataFrame addLastUpdatedColumn(SQLContext sql, DataFrame df) {
+	private static DataFrame stringToTimestamp(SQLContext sql, DataFrame df) {
 		sql.registerDataFrameAsTable(df, "df");
         sql.udf().register("toDate", (String s) -> Timestamp.valueOf(s), DataTypes.TimestampType);
         df = sql.sql("SELECT d.*, toDate(d.update_date) as last_updated FROM df as d");
         df = df.drop("update_date");
+        df = df.withColumnRenamed("last_updated", "update_date");
 		return df;
 	}
 }
