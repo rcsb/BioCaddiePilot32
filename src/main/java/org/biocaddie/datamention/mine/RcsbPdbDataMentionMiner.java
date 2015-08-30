@@ -1,13 +1,7 @@
 package org.biocaddie.datamention.mine;
 
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.sql.Date;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -84,7 +78,7 @@ public class RcsbPdbDataMentionMiner
 		String outputDirectory = args[1];
 		String outputFileName = outputDirectory + "/" + OUTPUT_FILE_NAME;
 		setOutputFileName(outputFileName);
-		String pmcFileMetadata = inputDirectory + "/" + PMC_FILE_METADATA;
+		String pmcFileMetadata = outputDirectory + "/" + PMC_FILE_METADATA;
 		setPmcMetadataFileName(pmcFileMetadata);
 		
 		// check for incremental update since the last update date 
