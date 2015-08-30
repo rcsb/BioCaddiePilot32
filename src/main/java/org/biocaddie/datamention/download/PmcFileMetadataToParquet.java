@@ -63,7 +63,7 @@ public class PmcFileMetadataToParquet {
 		metadata = SparkUtils.toRcsbConvention(metadata);
 		
 		// for now we only need these columns
-	    metadata = metadata.select("pmc_id", "pm_id", "file_name", "last_updated");
+	    metadata = metadata.select("pmc_id", "pm_id", "file_name", "update_date");
 		
 		// show schema and some sample data
 		metadata.printSchema();
