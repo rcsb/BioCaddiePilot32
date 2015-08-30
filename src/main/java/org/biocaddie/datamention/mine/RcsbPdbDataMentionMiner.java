@@ -1,6 +1,12 @@
 package org.biocaddie.datamention.mine;
 
+import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Date;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -23,14 +29,18 @@ import scala.Tuple2;
 
 public class RcsbPdbDataMentionMiner
 {
+	private static final String PMC_FILE_METADATA = "PmcFileMetadata.parquet";
+	private static final String OUTPUT_FILE_NAME = "PdbDataMentions.parquet";
+	private static final String OUTPUT_FORMAT = "parquet";
+	
 	private static final int NUM_THREADS = 4;
 	private static final int NUM_TASKS = 3;
 	private static final int BATCH_SIZE = 25000;
 	
-	private String pmcFileName;
+	private String pmcMetadataFileName;
 	private String outputFileName;
 	private Date lastUpdated;
-	private String[] pmcFileList;
+	private List<String> pmcFileList;
 	
 	private DataFrame pmcFileMetaData;
 	private Set<String> uniqueFileNames = new HashSet<>();
@@ -62,38 +72,38 @@ public class RcsbPdbDataMentionMiner
 		System.out.println("time: " + time/1E9 + " s");
 	}
 	
-	private void parseCommandLine(String[] args) {
+	private void parseCommandLine(String[] args) throws IOException {
+//		System.out.println("Usage: RcsbPdbDataMentionMiner pmcFileList.parquet pmcFileNames ...  outputFile.parquet [-lastUpdated date]");
+//        System.out.println(" latUpdated: ");
+//        throw new IllegalArgumentException("Invalid command line arguments");
+        
+		String inputDirectory = args[0];
+		List<String> inputFiles = PmcTarBallReader.getTarBallFileNames(inputDirectory);	
+		setPmcFileList(inputFiles);
 		
-		if (args.length < 3) {
-			System.out.println("Usage: RcsbPdbDataMentionMiner pmcFileList.parquet pmcFileNames ...  outputFile.parquet [-lastUpdated date]");
-            System.out.println(" latUpdated: ");
-            throw new IllegalArgumentException("Invalid command line arguments");
-		}
+		String outputDirectory = args[1];
+		String outputFileName = outputDirectory + "/" + OUTPUT_FILE_NAME;
+		setOutputFileName(outputFileName);
+		String pmcFileMetadata = inputDirectory + "/" + PMC_FILE_METADATA;
+		setPmcMetadataFileName(pmcFileMetadata);
 		
-		setPmcFileName(args[0]);
-		
-		if (args[args.length-2].equals("-lastUpdated")) {
-			setLastUpdated(Date.valueOf(args[args.length-1]));
-			setOutputFileName(args[args.length-3]);
-	        setPmcFileList(Arrays.copyOfRange(args, 1, args.length-3));
-		} else {
-			setLastUpdated(Date.valueOf("1972-01-01"));
-			setOutputFileName(args[args.length-1]);
-	        setPmcFileList(Arrays.copyOfRange(args, 1, args.length-1));
+		// check for incremental update since the last update date 
+		if (args.length == 4 && args[2].equals("-lastUpdated")) {
+			setLastUpdated(Date.valueOf(args[3]));
 		}
 		
 		System.out.println("Last updated    : " + getLastUpdated());
 		System.out.println("PMC File List   : " + getPmcFileName());
-		System.out.println("PMC File Names  : " + Arrays.toString(getPmcFileList()));
+		System.out.println("PMC File Names  : " + getPmcFileList());
 		System.out.println("Output File Name: " + getOutputFileName());
 	}
 	
 	public String getPmcFileName() {
-		return pmcFileName;
+		return pmcMetadataFileName;
 	}
 
-	public void setPmcFileName(String pmcFileName) {
-		this.pmcFileName = pmcFileName;
+	public void setPmcMetadataFileName(String pmcFileName) {
+		this.pmcMetadataFileName = pmcFileName;
 	}
 
 	public String getOutputFileName() {
@@ -112,11 +122,11 @@ public class RcsbPdbDataMentionMiner
 		this.lastUpdated = lastUpdated;
 	}
 
-	public String[] getPmcFileList() {
+	public List<String> getPmcFileList() {
 		return pmcFileList;
 	}
 
-	public void setPmcFileList(String[] pmcFileList) {
+	public void setPmcFileList(List<String> pmcFileList) {
 		this.pmcFileList = pmcFileList;
 	}
 
@@ -186,7 +196,7 @@ public class RcsbPdbDataMentionMiner
 	}
 	
 	private void createUpdateMap() {
-		Row[] rows = pmcFileMetaData.select("fileName","updateDate").collect();
+		Row[] rows = pmcFileMetaData.select("file_name","update_date").collect();
 		
 		for (Row r: rows) {
 			updateMap.put(r.getString(0), r.getDate(1));
@@ -195,7 +205,7 @@ public class RcsbPdbDataMentionMiner
 	
 	private void loadPmcFileMetaData() {
 		// pmcFileMetadata: pmcId, pmId, fileName, lastUpdated
-		pmcFileMetaData = sqlContext.read().parquet(pmcFileName);
+		pmcFileMetaData = sqlContext.read().parquet(pmcMetadataFileName);
 	}
 	
 	private void initializeSpark() {

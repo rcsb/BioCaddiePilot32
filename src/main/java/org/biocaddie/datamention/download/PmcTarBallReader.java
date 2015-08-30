@@ -5,8 +5,13 @@ package org.biocaddie.datamention.download;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.sql.Date;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.zip.GZIPInputStream;
@@ -102,5 +107,20 @@ public class PmcTarBallReader {
 			index = fileName.lastIndexOf(".nxml");
 		}
 		return fileName.substring(0, index);
+	}
+	
+	public static List<String> getTarBallFileNames(String directory) throws IOException {
+		List<String> fileNames = new ArrayList<>();
+
+		DirectoryStream<Path> directoryStream = Files.newDirectoryStream(Paths.get(directory));
+		for (Path path : directoryStream) {
+			System.out.println(path);
+			if (path.toString().endsWith(".tar.gz")) {
+				fileNames.add(path.toString());
+			}
+		}
+		Collections.sort(fileNames);
+		
+		return fileNames;
 	}
 }
