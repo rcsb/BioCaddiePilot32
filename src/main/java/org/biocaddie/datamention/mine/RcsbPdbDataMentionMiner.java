@@ -27,9 +27,9 @@ public class RcsbPdbDataMentionMiner
 	private static final String OUTPUT_FILE_NAME = "PdbDataMentions.parquet";
 	private static final String OUTPUT_FORMAT = "parquet";
 	
-	private static final int NUM_THREADS = 4;
+//	private static final int NUM_THREADS = 4;
 	private static final int NUM_TASKS = 3;
-	private static final int BATCH_SIZE = 25000;
+	private static final int BATCH_SIZE = 20000;
 	
 	private String pmcMetadataFileName;
 	private String outputFileName;
@@ -135,6 +135,8 @@ public class RcsbPdbDataMentionMiner
 	public void mine() throws Exception
 	{		
         boolean firstBatch = true;
+        int threads = sparkContext.defaultParallelism();
+        System.out.println("Number of threads: " + threads);
 
 		int count = 0;
 
@@ -151,22 +153,27 @@ public class RcsbPdbDataMentionMiner
 				tuples = trimRedundantRecords(tuples);
 				count += tuples.size();
 				
-				JavaPairRDD<String, byte[]> data = sparkContext.parallelizePairs(tuples, NUM_THREADS*NUM_TASKS);
+				JavaPairRDD<String, byte[]> data = sparkContext.parallelizePairs(tuples, threads*NUM_TASKS);
 				
 				JavaRDD<DataMentionRecord> records = data
 				.filter(new PdbRegExFilter())
 				.flatMap(new PdbDataMentionMapper());
 				
 				// Apply a schema to an RDD of JavaBeans and register it as a table.
-				DataFrame dataRecords = sqlContext.createDataFrame(records, DataMentionRecord.class);
+				DataFrame dataMentions = sqlContext.createDataFrame(records, DataMentionRecord.class);
+				dataMentions = SparkUtils.toRcsbConvention(dataMentions);
 				
 				if (firstBatch) {
 					System.out.println("new records");
-					dataRecords.write().mode(SaveMode.Overwrite).parquet(getOutputFileName());
+					// show schema and sample data
+					dataMentions.printSchema();
+					dataMentions.show();
+						
+					dataMentions.write().mode(SaveMode.Overwrite).parquet(getOutputFileName());
 					firstBatch = false;
 				} else {
 					System.out.println("appending records");
-					dataRecords.write().mode(SaveMode.Append).parquet(getOutputFileName());
+					dataMentions.write().mode(SaveMode.Append).parquet(getOutputFileName());
 				}
 			}
 		}
