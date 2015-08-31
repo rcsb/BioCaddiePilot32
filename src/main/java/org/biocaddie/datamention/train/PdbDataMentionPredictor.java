@@ -31,10 +31,10 @@ public class PdbDataMentionPredictor {
 		String unassignedFileName = workingDirectory + "/Unassigned.parquet";
 		DataFrame unassigned = sqlContext.read().parquet(unassignedFileName).filter(exclusionFilter);
 		
-		String modelFileName = workingDirectory = "/Model.ser";
+		String modelFileName = workingDirectory + "/PdbDataMentionModel.ser";
 		DataFrame predicted = predict(sqlContext, unassigned, modelFileName);
 		
-		String predictedFileName = workingDirectory + "/Predicted.parquet";
+		String predictedFileName = workingDirectory + "/PdbDataMentionPredicted.parquet";
 		predicted.write().mode(SaveMode.Overwrite).parquet(predictedFileName);
 		
 	    long end = System.nanoTime();

@@ -55,7 +55,7 @@ public class PdbDataMentionTrainer {
 		
 		long start = System.nanoTime();
 		
-		String metricsFileName = workingDirectory + "/Metrics.txt";
+		String metricsFileName = workingDirectory + "/PdbDataMentionMetrics.txt";
 		PrintWriter writer = new PrintWriter(metricsFileName);
 		
 		DataFrame positives = positivesI.unionAll(positivesII);
@@ -63,7 +63,7 @@ public class PdbDataMentionTrainer {
 
 		writer.println("*** Positives, Negatives ***");
 		
-		String modelFileName = workingDirectory + "/Model.ser";
+		String modelFileName = workingDirectory + "/PdbDataMentionModel.ser";
 		writer.println(train(sqlContext, positives, negatives, unassigned, modelFileName));
 		writer.close();
 
