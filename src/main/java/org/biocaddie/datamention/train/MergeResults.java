@@ -43,40 +43,22 @@ public class MergeResults {
 		String dataMentionFileName = workingDirectory + "/PdbDataMentionFinal.parquet";
 		DataFrame union = positivesI.unionAll(positivesII).unionAll(predicted).coalesce(NUM_PARTITIONS).cache();
 		
+		// save all data mentions with details
+		union = union.select("pdb_id","match_type","deposition_year","pmc_id","pm_id","publication_year","primary_citation", "sentence");
 		union.write().mode(SaveMode.Overwrite).parquet(dataMentionFileName);
 		
 		String dataMentionTsvFileName = workingDirectory + "/PdbDataMentionFinal.tsv";
 		DataFrameToDelimitedFileWriter.writeTsv(dataMentionTsvFileName, union);
 		
-		
-//		union.groupBy("depositionYear").count().show(100);
-//		DataFrame subset2 = set2.select("pdbId", "depositionYear", "pmcId", "pmId", "publicationYear").distinct();
-//		union.filter("publicationYear IS NOT null").groupBy("publicationYear").count().show(100);
-//		union.groupBy("depositionYear").mean("publicationYear").show(100);
-//		union.groupBy("depositionYear").min("publicationYear").show(100);//
-//		union.groupBy("depositionYear").max("publicationYear").show(100);
-		
-//		union.groupBy("pdbId", "pmcId").count().show(100);
-//		DataFrame unique = union.distinct().cache();
-//		DataFrame counts = unique.groupBy("pmcId").count().cache();
-//		counts.sort("count").show(100);
-//		counts.sort("count").groupBy("count").count().show(100);
+		// save unique PDB ID, PMC ID pairs
+		DataFrame unique = union.dropDuplicates(new String[]{"match_type","sentence"}).distinct().sort("pdb_id", "pmc_id");
 
-	//	union.groupBy("depositionYear").agg(aggregates).show(100);
-//		System.out.println("Unique pdbIds: " + unique.select("pdbId").distinct().count());
-//		System.out.println("Unique pmcIds: " + unique.select("pmcId").distinct().count());
+		unique.printSchema();
+		unique.show(1000);
 		
-//		System.out.println("Distinct mentions: " + unique.count());
-		
-//		 try {
-//			 DataFrameToDelimitedFileWriter.write(args[6],  "\t", unique);
-//			} catch (FileNotFoundException e) {
-//				// TODO Auto-generated catch block
-//				e.printStackTrace();
-//			}
-//		
-//		unique.coalesce(NUM_PARTITIONS).write().mode(SaveMode.Overwrite).parquet(args[7]);
-		
+		String dataMentionUniqueTsvFileName = workingDirectory + "/PdbDataMentionUniqueFinal.tsv";
+		DataFrameToDelimitedFileWriter.writeTsv(dataMentionUniqueTsvFileName, unique);
+
 	    long end = System.nanoTime();
 	    System.out.println("Time: " + (end-start)/1E9 + " sec.");
 	    
