@@ -40,24 +40,26 @@ public class MergeResults {
 			
 		long start = System.nanoTime();
 		
-		String dataMentionFileName = workingDirectory + "/PdbDataMentionFinal.parquet";
-		DataFrame union = positivesI.unionAll(positivesII).unionAll(predicted).coalesce(NUM_PARTITIONS).cache();
-		
-		// save all data mentions with details
+		// merge all results and select relevant columns
+		DataFrame union = positivesI.unionAll(positivesII).unionAll(predicted).coalesce(NUM_PARTITIONS).cache();	
 		union = union.select("pdb_id","match_type","deposition_year","pmc_id","pm_id","publication_year","primary_citation", "sentence");
-		union.write().mode(SaveMode.Overwrite).parquet(dataMentionFileName);
+		union = union.sort("pdb_id", "pmc_id");
 		
-		String dataMentionTsvFileName = workingDirectory + "/PdbDataMentionFinal.tsv";
-		DataFrameToDelimitedFileWriter.writeTsv(dataMentionTsvFileName, union);
+		// save detailed PDB data mentions
+		String detailsParquetFileName = workingDirectory + "/PdbDataMentionDetails.parquet";
+		union.write().format("parquet").mode(SaveMode.Overwrite).save(detailsParquetFileName);
 		
-		// save unique PDB ID, PMC ID pairs
-		DataFrame unique = union.dropDuplicates(new String[]{"match_type","sentence"}).distinct().sort("pdb_id", "pmc_id");
-
-		unique.printSchema();
-		unique.show(1000);
+		String detailsTsvFileName = workingDirectory + "/PdbDataMentionDetails.tsv";
+		DataFrameToDelimitedFileWriter.writeTsv(detailsTsvFileName, union);
 		
-		String dataMentionUniqueTsvFileName = workingDirectory + "/PdbDataMentionUniqueFinal.tsv";
-		DataFrameToDelimitedFileWriter.writeTsv(dataMentionUniqueTsvFileName, unique);
+		// save unique PDB ID, PMC ID data mention pairs
+		DataFrame unique = union.drop("match_type").drop("sentence").distinct().sort("pdb_id", "pmc_id");
+		
+		String uniqueParquetFileName = workingDirectory + "/PdbDataMentionUnique.parquet";
+		unique.write().format("parquet").mode(SaveMode.Overwrite).save(uniqueParquetFileName);
+		
+		String uniqueTsvFileName = workingDirectory + "/PdbDataMentionUnique.tsv";
+		DataFrameToDelimitedFileWriter.writeTsv(uniqueTsvFileName, unique);
 
 	    long end = System.nanoTime();
 	    System.out.println("Time: " + (end-start)/1E9 + " sec.");
