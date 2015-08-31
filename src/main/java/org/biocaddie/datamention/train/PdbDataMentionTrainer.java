@@ -60,8 +60,6 @@ public class PdbDataMentionTrainer {
 		
 		DataFrame positives = positivesI.unionAll(positivesII);
 		DataFrame negatives = negativesI.unionAll(negativesII);
-
-		writer.println("*** Positives, Negatives ***");
 		
 		String modelFileName = workingDirectory + "/PdbDataMentionModel.ser";
 		writer.println(train(sqlContext, positives, negatives, unassigned, modelFileName));
