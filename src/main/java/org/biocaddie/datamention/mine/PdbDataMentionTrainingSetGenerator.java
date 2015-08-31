@@ -45,7 +45,7 @@ public class PdbDataMentionTrainingSetGenerator
 		DataFrame pmc2 = sqlContext.read().parquet(pmcArticleMetadataFileName);
 		System.out.println("PMC Article Metadata: " + pmc2.count());
 		
-		DataFrame pmc = pmc1.join(pmc2, "pmc_id").cache();
+		DataFrame pmc = pmc1.join(pmc2, "pmc_id").repartition(threads).cache();
 		sqlContext.registerDataFrameAsTable(pmc, "pmc");
 		System.out.println("PMC Joint Metadata: " + pmc.count());
 		pmc.printSchema();
@@ -53,6 +53,7 @@ public class PdbDataMentionTrainingSetGenerator
 
 		DataFrame superset = sqlContext.sql(
 				"SELECT m.*, p.publication_year, p.pmc_id, p.pm_id FROM dataMentions m LEFT OUTER JOIN pmc p ON m.file_name=p.file_name WHERE p.pmc_id IS NOT null").cache();
+		superset.repartition(threads);
 		sqlContext.registerDataFrameAsTable(superset, "superset");
 		System.out.println("Joint PDB Data Mentions with PMC Metadata: " + superset.count());
 		System.out.println(superset.schema());
@@ -67,13 +68,15 @@ public class PdbDataMentionTrainingSetGenerator
 		String pdbObsoleteMetadataFileName = workingDirectory + "/" + PDB_OBSOLETE_METADATA;
 		DataFrame obsoleteEntries = sqlContext.read().parquet(pdbObsoleteMetadataFileName).cache();
 		DataFrame pdbMetadata = currentEntries.unionAll(obsoleteEntries).cache();
+		pdbMetadata.repartition(threads);
 		sqlContext.registerDataFrameAsTable(pdbMetadata, "pdbMetadata");
 
 		int nullCount = 0;
 		
 		// look for both pmcId and pmID matches
 		DataFrame merged = sqlContext.sql(
-				"SELECT s.pdb_id, s.sentence, s.blinded_sentence, s.match_type, s.pmc_id, s.pm_id, s.publication_year, c.deposition_year, c.entry_type, CASE WHEN c.pmc_id IS NOT NULL AND (c.pmcId=s.pmc_id OR c.pm_id=s.pm_id) THEN true ELSE false END as primary_citation FROM superset s LEFT OUTER JOIN pdbMetadata c ON s.pdb_id=c.pdb_id").cache();
+				"SELECT s.pdb_id, s.sentence, s.blinded_sentence, s.match_type, s.pmc_id, s.pm_id, s.publication_year, c.deposition_year, c.entry_type, CASE WHEN c.pmc_id IS NOT NULL AND (c.pmc_id=s.pmc_id OR c.pm_id=s.pm_id) THEN true ELSE false END as primary_citation FROM superset s LEFT OUTER JOIN pdbMetadata c ON s.pdb_id=c.pdb_id").cache();
+		merged.repartition(threads);
 		sqlContext.registerDataFrameAsTable(merged, "merged");
 		sqlContext.uncacheTable("pdbMetadata");
 		sqlContext.uncacheTable("superset");
