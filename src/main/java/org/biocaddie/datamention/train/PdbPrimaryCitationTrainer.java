@@ -37,8 +37,8 @@ public class PdbPrimaryCitationTrainer {
 
 		String positivesIIFileName = workingDirectory + "/" + "PositivesII.parquet";
 		DataFrame positivesII = sqlContext.read().parquet(positivesIIFileName); 
-		System.out.println("Sampling 16% of positivesII");
-		positivesII = positivesII.sample(false,  0.16, 1);
+//		System.out.println("Sampling 16% of positivesII");
+//		positivesII = positivesII.sample(false,  0.16, 1);
 		sqlContext.registerDataFrameAsTable(positivesII, "positivesII");
 		DataFrame negatives = sqlContext.sql("SELECT pdb_id, match_type, deposition_year, pmc_id, pm_id, publication_year, CAST(primary_citation AS double) AS label, sentence, blinded_sentence FROM positivesII WHERE sentence NOT LIKE '%deposited%' AND sentence NOT LIKE '%submitted%'");
 		negatives.show(10);
