@@ -22,7 +22,7 @@ import org.rcsb.spark.util.SparkUtils;
 import scala.Tuple2;
 
 public class PdbDataMentionTrainer {
-	private static final String exclusionFilter = "pdbId != '3DNA' AND pdbId != '1AND' AND pdbId NOT LIKE '%H2O'";
+	private static final String exclusionFilter = "pdb_id != '3DNA' AND pdb_id != '1AND' AND pdb_id NOT LIKE '%H2O'";
 
 	public static void main(String[] args) throws IOException {
 		
