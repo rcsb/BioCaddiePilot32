@@ -8,6 +8,17 @@ import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SaveMode;
 import org.rcsb.spark.util.SparkUtils;
 
+/**
+ * This class generates positive and negative training/test sets for classifying PDB Data Mentions
+ * using Machine Learning methods.
+ * 
+ * An Unassigned file is also generated that contains PDB Data Mentions that could not be
+ * classified as either positive or negative. Machine learning models will be used to classify
+ * these data mentions.
+ * 
+ * @author Peter Rose
+ *
+ */
 public class PdbDataMentionTrainingSetGenerator
 {
 	private static final String PDB_DATA_MENTIONS = "PdbDataMentions.parquet";
@@ -89,7 +100,7 @@ public class PdbDataMentionTrainingSetGenerator
 
 		DataFrame positivesI = sqlContext.sql(
 				"SELECT m.pdb_id, m.match_type, m.deposition_year, m.pmc_id, m.pm_id, m.publication_year, m.primary_citation, m.sentence, m.blinded_sentence, 1.0 as label FROM merged m WHERE m.primary_citation = 1 AND m.publication_year >= m.deposition_year").cache();
-		String positivesIFileName = workingDirectory + "/positivesI.parquet";
+		String positivesIFileName = workingDirectory + "/PositivesI.parquet";
 		positivesI.coalesce(threads).write().mode(SaveMode.Overwrite).parquet(positivesIFileName);
 		System.out.println("positiveI: " + positivesI.count());
 		
@@ -97,18 +108,18 @@ public class PdbDataMentionTrainingSetGenerator
 				"SELECT m.pdb_id, m.match_type, m.deposition_year, m.pmc_id, m.pm_id, m.publication_year, m.primary_citation, m.sentence, m.blinded_sentence, 1.0 as label FROM merged m WHERE m.match_type!='PDB_NONE' AND m.primary_citation = 0 AND m.publication_year>=m.deposition_year").cache();
 
 		System.out.println("positiveII: " + positivesII.count());
-		String positivesIIFileName = workingDirectory + "/positivesII.parquet";
+		String positivesIIFileName = workingDirectory + "/PositivesII.parquet";
 		positivesII.coalesce(threads).write().mode(SaveMode.Overwrite).parquet(positivesIIFileName);
 
 		DataFrame negativesI = sqlContext.sql(
 				"SELECT m.pdb_id, m.match_type, m.deposition_year, m.pmc_id, m.pm_id, m.publication_year, m.primary_citation, m.sentence, m.blinded_sentence, 0.0 as label FROM merged m WHERE m.entry_type IS NOT null AND m.publication_year<m.deposition_year").cache();
-		String negativesIFileName = workingDirectory + "/negativesI.parquet";
+		String negativesIFileName = workingDirectory + "/NegativesI.parquet";
 		negativesI.coalesce(threads).write().mode(SaveMode.Overwrite).parquet(negativesIFileName);		
 		System.out.println("negativesI: " + negativesI.count());
 
 		DataFrame negativesII = sqlContext.sql(
 				"SELECT m.pdb_id, m.match_type, m.deposition_year, m.pmc_id, m.pm_id, m.publication_year, m.primary_citation, m.sentence, m.blinded_sentence, 0.0 as label FROM merged m WHERE m.entry_type IS null").cache();
-		String negativesIIFileName = workingDirectory + "/negativesII.parquet";
+		String negativesIIFileName = workingDirectory + "/NegativesII.parquet";
 		negativesII.coalesce(threads).write().mode(SaveMode.Overwrite).parquet(negativesIIFileName);			
 		System.out.println("negativeII: " + negativesII.count());
 
@@ -116,7 +127,7 @@ public class PdbDataMentionTrainingSetGenerator
 				"SELECT m.pdb_id, m.match_type, m.deposition_year, m.pmc_id,m.pm_id, m.publication_year, m.primary_citation, m.sentence, m.blinded_sentence, 0.0 as label FROM merged m WHERE m.entry_type IS NOT NULL AND m.match_type='PDB_NONE' AND m.publication_year>=m.deposition_year AND m.primary_citation=false").cache();
 
 		System.out.println("Unassigned Data Mentions: " + unassignedMentions.schema());
-		String unassignedMentionsFileName = workingDirectory + "/unassigned.parquet";
+		String unassignedMentionsFileName = workingDirectory + "/Unassigned.parquet";
 		unassignedMentions.coalesce(threads).write().mode(SaveMode.Overwrite).parquet(unassignedMentionsFileName);	
 
 		System.out.println("time: " + (System.nanoTime()-start)/1E9 + " s");
