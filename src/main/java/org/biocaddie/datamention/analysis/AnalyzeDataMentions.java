@@ -46,7 +46,8 @@ public class AnalyzeDataMentions {
 		uniqueMentionsByYear.show(100);
 	
 		//read PMC data: fileName, citation, pmcId, pmId, publicationYear, publicationDate, updateDate;
-		DataFrame pmc = sqlContext.read().parquet(args[1]);
+		String pmcArticleMetadataFileName = workingDirectory + "/PmcArticleMetadata.parquet";
+		DataFrame pmc = sqlContext.read().parquet(pmcArticleMetadataFileName);
 		System.out.println("PMC publications: " + pmc.count());
 		DataFrame pmcByYear = pmc.groupBy("publication_year").count().coalesce(1).cache();
 		pmcByYear = pmcByYear.withColumnRenamed("count", "publications");
