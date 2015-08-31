@@ -2,7 +2,6 @@ package org.biocaddie.datamention.download;
 
 import java.io.IOException;
 import java.sql.Date;
-import java.sql.Timestamp;
 import java.util.Arrays;
 
 import org.apache.spark.api.java.JavaSparkContext;
@@ -121,7 +120,6 @@ public class PmcFileMetadataToParquet {
 	 */
 	private static DataFrame stringToDate(SQLContext sql, DataFrame df) {
 		sql.registerDataFrameAsTable(df, "df");
- //       sql.udf().register("toDate", (String s) -> Timestamp.valueOf(s), DataTypes.TimestampType);
         sql.udf().register("toDate", (String s) -> Date.valueOf(s.substring(0,10)), DataTypes.DateType);
         df = sql.sql("SELECT d.*, toDate(d.update_date) as last_updated FROM df as d");
         df = df.drop("update_date");

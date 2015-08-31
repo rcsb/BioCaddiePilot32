@@ -4,97 +4,113 @@ import java.util.Arrays;
 
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.DataFrame;
-import org.apache.spark.sql.Row;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SaveMode;
-import org.biocaddie.datamention.download.PmcMetaData;
 import org.rcsb.spark.util.SparkUtils;
 
 public class PdbDataMentionTrainingSetGenerator
 {
-	private static int NUM_PARTITIONS = 1;
+	private static final String PDB_DATA_MENTIONS = "PdbDataMentions.parquet";
+	private static final String PMC_FILE_METATDATA = "PmcFileMetadata.parquet";
+	private static final String PMC_ARTICLE_METADATA = "PmcArticleMetadata.parquet";
+	private static final String PDB_CURRENT_METADATA = "PdbCurrentMetaData.parquet";
+	private static final String PDB_OBSOLETE_METADATA = "PdbObsoleteMetaData.parquet";
+		
 	public static void main(String args[]) throws Exception
 	{
 		long start = System.nanoTime();
+		
+		String workingDirectory = args[0];
 
 		JavaSparkContext sc = SparkUtils.getJavaSparkContext();
-		sc.getConf().registerKryoClasses(new Class[]{PmcMetaData.class});
 		SQLContext sqlContext = SparkUtils.getSqlContext(sc);
+		int threads = sc.defaultParallelism();
 
 		// Read data sources
 		System.out.println(Arrays.toString(args));
 
 		// dataMentions: pdbId, fileName, sentence, matchType;
-		DataFrame dataMentions = sqlContext.read().parquet(args[0]).cache();
-		System.out.println("Mention records: " + dataMentions.count());
-		sqlContext.registerDataFrameAsTable(dataMentions, "Mentions");
-
-		// pmc: fileName, citation, pmcId, pmId, publicationYear, publicationDate, updateDate;
-		DataFrame pmc = sqlContext.read().parquet(args[1]).cache();
-		System.out.println("Pmc records: " + pmc.count());
-		sqlContext.registerDataFrameAsTable(pmc, "Pmc");
-		for (Row r: pmc.collect()) {
-			if (r.getAs("pmcId") == null) {
-			System.out.println(r);
-			}
-		}
+		String dataMentionFileName = workingDirectory + "/" + PDB_DATA_MENTIONS;
+		DataFrame dataMentions = sqlContext.read().parquet(dataMentionFileName).cache();
+		System.out.println("PDB Data Mentions : " + dataMentions.count());
+		sqlContext.registerDataFrameAsTable(dataMentions, "dataMentions");
 		
+		// pmcFileMetadata: pmcId, fileName, lastUpdated
+		String pmcFileMetadataFileName = workingDirectory + "/" + PMC_FILE_METATDATA;
+		DataFrame pmc1 = sqlContext.read().parquet(pmcFileMetadataFileName).cache();
+		System.out.println("PMC File Metadata: " + pmc1.count());
+		
+		// pmcArticleMetadata: pmcId, pmId, publicationYear
+		String pmcArticleMetadataFileName = workingDirectory + "/" + PMC_ARTICLE_METADATA;
+		DataFrame pmc2 = sqlContext.read().parquet(pmcArticleMetadataFileName);
+		System.out.println("PMC Article Metadata: " + pmc2.count());
+		
+		DataFrame pmc = pmc1.join(pmc2, "pmc_id").cache();
+		sqlContext.registerDataFrameAsTable(pmc, "pmc");
+		System.out.println("PMC Joint Metadata: " + pmc.count());
+		pmc.printSchema();
+		pmc.show();
 
-		DataFrame superSet1 = sqlContext.sql(
-				"SELECT m.*, p.publicationYear, p.pmcId, p.pmId FROM Mentions m LEFT OUTER JOIN Pmc p ON m.fileName=p.fileName WHERE p.pmcId IS NOT null").cache();
-		sqlContext.registerDataFrameAsTable(superSet1, "SuperSet1");
-		System.out.println("superSet1 size: " + superSet1.count());
-		System.out.println(superSet1.schema());
-		sqlContext.uncacheTable("Mentions");
-		sqlContext.uncacheTable("Pmc");
+		DataFrame superset = sqlContext.sql(
+				"SELECT m.*, p.publication_year, p.pmc_id, p.pm_id FROM dataMentions m LEFT OUTER JOIN pmc p ON m.file_name=p.file_name WHERE p.pmc_id IS NOT null").cache();
+		sqlContext.registerDataFrameAsTable(superset, "superset");
+		System.out.println("Joint PDB Data Mentions with PMC Metadata: " + superset.count());
+		System.out.println(superset.schema());
+		sqlContext.uncacheTable("dataMentions");
+		sqlContext.uncacheTable("pmc");
 
 		// citations: pdbId, pmcId, pmId, depositionYear, depositionDate, entryType;
-		DataFrame currentEntries = sqlContext.read().parquet(args[2]).cache();
-		System.out.println("Current PDB records: " + currentEntries.count());
+		String pdbCurrentMetadataFileName = workingDirectory + "/" + PDB_CURRENT_METADATA;
+		DataFrame currentEntries = sqlContext.read().parquet(pdbCurrentMetadataFileName).cache();
+		System.out.println("PDB Current Metadata: " + currentEntries.count());
 		
-		DataFrame obsoleteEntries = sqlContext.read().parquet(args[3]).cache();
-		DataFrame pdbCitations = currentEntries.unionAll(obsoleteEntries).cache();
-		sqlContext.registerDataFrameAsTable(pdbCitations, "Citations");
+		String pdbObsoleteMetadataFileName = workingDirectory + "/" + PDB_OBSOLETE_METADATA;
+		DataFrame obsoleteEntries = sqlContext.read().parquet(pdbObsoleteMetadataFileName).cache();
+		DataFrame pdbMetadata = currentEntries.unionAll(obsoleteEntries).cache();
+		sqlContext.registerDataFrameAsTable(pdbMetadata, "pdbMetadata");
 
-		DataFrame merged = sqlContext.sql(
-				"SELECT s.pdbId, s.sentence, s.blindedSentence, s.matchType, s.pmcId, s.pmId, s.publicationYear, c.depositionYear, c.entryType, CASE WHEN c.pmcId IS NOT NULL AND c.pmcId=s.pmcId THEN true ELSE false END as primaryCitation FROM SuperSet1 s LEFT OUTER JOIN Citations c ON s.pdbId=c.pdbId").cache();
-		sqlContext.registerDataFrameAsTable(merged, "Merged");
-		sqlContext.uncacheTable("Citations");
-		sqlContext.uncacheTable("SuperSet1");
-		System.out.println("merged size: " + merged.count());
-		System.out.println(merged.schema());
 		int nullCount = 0;
+		
+		// look for both pmcId and pmID matches
+		DataFrame merged = sqlContext.sql(
+				"SELECT s.pdb_id, s.sentence, s.blinded_sentence, s.match_type, s.pmc_id, s.pm_id, s.publication_year, c.deposition_year, c.entry_type, CASE WHEN c.pmc_id IS NOT NULL AND (c.pmcId=s.pmc_id OR c.pm_id=s.pm_id) THEN true ELSE false END as primary_citation FROM superset s LEFT OUTER JOIN pdbMetadata c ON s.pdb_id=c.pdb_id").cache();
+		sqlContext.registerDataFrameAsTable(merged, "merged");
+		sqlContext.uncacheTable("pdbMetadata");
+		sqlContext.uncacheTable("superset");
 
 		System.out.println("Null count: " + nullCount);
 
 		DataFrame positivesI = sqlContext.sql(
-				"SELECT m.pdbId, m.matchType, m.depositionYear, m.pmcId, m.pmId, m.publicationYear, m.primaryCitation, m.sentence, m.blindedSentence, 1.0 as label FROM Merged m WHERE m.primaryCitation = 1 AND m.publicationYear >= m.depositionYear").cache();
-		positivesI.coalesce(NUM_PARTITIONS).write().mode(SaveMode.Overwrite).parquet(args[4]);
+				"SELECT m.pdb_id, m.match_type, m.deposition_year, m.pmc_id, m.pm_id, m.publication_year, m.primary_citation, m.sentence, m.blinded_sentence, 1.0 as label FROM merged m WHERE m.primary_citation = 1 AND m.publication_year >= m.deposition_year").cache();
+		String positivesIFileName = workingDirectory + "/positivesI.parquet";
+		positivesI.coalesce(threads).write().mode(SaveMode.Overwrite).parquet(positivesIFileName);
 		System.out.println("positiveI: " + positivesI.count());
 		
 		DataFrame positivesII = sqlContext.sql(
-				"SELECT m.pdbId, m.matchType, m.depositionYear, m.pmcId, m.pmId, m.publicationYear, m.primaryCitation, m.sentence, m.blindedSentence, 1.0 as label FROM Merged m WHERE m.matchType!='PDB_NONE' AND m.primaryCitation = 0 AND m.publicationYear>=m.depositionYear").cache();
+				"SELECT m.pdb_id, m.match_type, m.deposition_year, m.pmc_id, m.pm_id, m.publication_year, m.primary_citation, m.sentence, m.blinded_sentence, 1.0 as label FROM merged m WHERE m.match_type!='PDB_NONE' AND m.primary_citation = 0 AND m.publication_year>=m.deposition_year").cache();
 
 		System.out.println("positiveII: " + positivesII.count());
-		positivesII.coalesce(NUM_PARTITIONS).write().mode(SaveMode.Overwrite).parquet(args[5]);
+		String positivesIIFileName = workingDirectory + "/positivesII.parquet";
+		positivesII.coalesce(threads).write().mode(SaveMode.Overwrite).parquet(positivesIIFileName);
 
 		DataFrame negativesI = sqlContext.sql(
-				"SELECT m.pdbId, m.matchType, m.depositionYear, m.pmcId, m.pmId, m.publicationYear, m.primaryCitation, m.sentence, m.blindedSentence, 0.0 as label FROM Merged m WHERE m.entryType IS NOT null AND m.publicationYear<m.depositionYear").cache();
-		negativesI.coalesce(NUM_PARTITIONS).write().mode(SaveMode.Overwrite).parquet(args[6]);		
+				"SELECT m.pdb_id, m.match_type, m.deposition_year, m.pmc_id, m.pm_id, m.publication_year, m.primary_citation, m.sentence, m.blinded_sentence, 0.0 as label FROM merged m WHERE m.entry_eype IS NOT null AND m.publication_year<m.deposition_year").cache();
+		String negativesIFileName = workingDirectory + "/negativesI.parquet";
+		negativesI.coalesce(threads).write().mode(SaveMode.Overwrite).parquet(negativesIFileName);		
 		System.out.println("negativesI: " + negativesI.count());
 
 		DataFrame negativesII = sqlContext.sql(
-				"SELECT m.pdbId, m.matchType, m.depositionYear, m.pmcId, m.pmId, m.publicationYear, m.primaryCitation, m.sentence, m.blindedSentence, 0.0 as label FROM Merged m WHERE m.entryType IS null").cache();
-		negativesII.coalesce(NUM_PARTITIONS).write().mode(SaveMode.Overwrite).parquet(args[7]);			
+				"SELECT m.pdb_id, m.match_type, m.deposition_year, m.pmc_id, m.pm_id, m.publication_year, m.primary_citation, m.sentence, m.blinded_sentence, 0.0 as label FROM merged m WHERE m.entry_eype IS null").cache();
+		String negativesIIFileName = workingDirectory + "/negativesII.parquet";
+		negativesII.coalesce(threads).write().mode(SaveMode.Overwrite).parquet(negativesIIFileName);			
 		System.out.println("negativeII: " + negativesII.count());
 
 		DataFrame validMentions = sqlContext.sql(
-				"SELECT m.pdbId, m.matchType, m.depositionYear, m.pmcId,m.pmId, m.publicationYear, m.primaryCitation, m.sentence, m.blindedSentence, 0.0 as label FROM Merged m WHERE m.entryType IS NOT NULL AND m.matchType='PDB_NONE' AND m.publicationYear>=m.depositionYear").cache();
+				"SELECT m.pdb_id, m.match_type, m.deposition_year, m.pmc_id,m.pm_id, m.publication_year, m.primary_citation, m.sentence, m.blinded_sentence, 0.0 as label FROM merged m WHERE m.entry_eype IS NOT NULL AND m.match_type='PDB_NONE' AND m.publication_year>=m.deposition_year AND m.primary_citation=false").cache();
 
-
-		System.out.println("mentions: " + validMentions.schema());
-		
-		validMentions.coalesce(NUM_PARTITIONS).write().mode(SaveMode.Overwrite).parquet(args[8]);	
+		System.out.println("Unassigned Data Mentions: " + validMentions.schema());
+		String unassignedMentionsFileName = workingDirectory + "/unassigned.parquet";
+		validMentions.coalesce(threads).write().mode(SaveMode.Overwrite).parquet(unassignedMentionsFileName);	
 
 		System.out.println("time: " + (System.nanoTime()-start)/1E9 + " s");
 

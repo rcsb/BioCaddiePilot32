@@ -1,8 +1,5 @@
 package org.biocaddie.datamention.mine;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -30,12 +27,12 @@ import edu.stanford.nlp.util.CoreMap;
 public class PdbDataMentionMapper implements FlatMapFunction<Tuple2<String, byte[]>, DataMentionRecord> {
 	private static final long serialVersionUID = 1L;
 	private static StanfordCoreNLP textPipeline;
-	private static List<String> stopWords;
+//	private static List<String> stopWords;
 	static {
 		Properties props = new Properties();
 		props.setProperty("annotators", "tokenize, ssplit");
 		textPipeline = new StanfordCoreNLP(props);
-		stopWords = loadStopWords();
+//		stopWords = loadStopWords(); are not used currently
 	}
 
 	@Override
@@ -64,8 +61,7 @@ public class PdbDataMentionMapper implements FlatMapFunction<Tuple2<String, byte
 				sentence = removeXmlTags(sentence);
 				String tSentence = trimExtraCharacters(sentence);
 				String bSentence = getBlindedSentence(pdbIds, tSentence);
-				//		bSentence = removeStopWords(bSentence);
-
+				// bSentence = removeStopWords(bSentence); // removing stop words makes no difference, for now leaving it out
 
 				for (String pdbId: pdbIds) {
 					DataMentionRecord record = new DataMentionRecord(pdbId, fileName, tSentence, bSentence, matchType, match);
@@ -76,6 +72,13 @@ public class PdbDataMentionMapper implements FlatMapFunction<Tuple2<String, byte
 		return list;
 	}
 
+/**
+ * Splits a document into sentences using the Stanford NLP library.
+ * 
+ * @param document
+ * @param fileName
+ * @return List of sentences encoded in CoreMap objects
+ */
 	private static List<CoreMap> splitIntoSentences(String document, String fileName) {
 		List<CoreMap> sentences = Collections.emptyList();
 		Annotation annotation = new Annotation(document);
@@ -122,30 +125,32 @@ public class PdbDataMentionMapper implements FlatMapFunction<Tuple2<String, byte
 		}
 		return blindedSentence;
 	}
-	
-	private static List<String> loadStopWords() {
-		List<String> stopWords = new ArrayList<String>();
-		BufferedReader reader = null;
-		try {
-		reader = new BufferedReader(new InputStreamReader(PdbDataMentionMiner.class.getResourceAsStream("/stopword.csv")));
-		String line = null;
-			while ((line = reader.readLine()) != null) {
-				stopWords.add(line.trim());
-				System.out.println(line);
-			}
-			reader.close();
-		} catch (IOException e) {
-			System.err.println("Error loading stopwords " + e.getMessage());
-		}
 
-		return stopWords;
-	}
-
-	private static String removeStopWords(String sentence) {
-		String lcSentence = sentence.toLowerCase();
-		for (String s: stopWords) {
-			lcSentence = lcSentence.replaceAll("\\b" + s + "\\b", "");
-		}
-		return lcSentence;
-	}
+// for potential future use
+//
+//	private static List<String> loadStopWords() {
+//		List<String> stopWords = new ArrayList<String>();
+//		BufferedReader reader = null;
+//		try {
+//		reader = new BufferedReader(new InputStreamReader(PdbDataMentionMapper.class.getResourceAsStream("/stopword.csv")));
+//		String line = null;
+//			while ((line = reader.readLine()) != null) {
+//				stopWords.add(line.trim());
+//				System.out.println(line);
+//			}
+//			reader.close();
+//		} catch (IOException e) {
+//			System.err.println("Error loading stopwords " + e.getMessage());
+//		}
+//
+//		return stopWords;
+//	}
+//
+//	private static String removeStopWords(String sentence) {
+//		String lcSentence = sentence.toLowerCase();
+//		for (String s: stopWords) {
+//			lcSentence = lcSentence.replaceAll("\\b" + s + "\\b", "");
+//		}
+//		return lcSentence;
+//	}
 }

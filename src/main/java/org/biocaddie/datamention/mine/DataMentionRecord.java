@@ -2,6 +2,12 @@ package org.biocaddie.datamention.mine;
 
 import java.io.Serializable;
 
+/**
+ * Java Bean that holds PDB Data Mention informations
+ * 
+ * @author Peter Rose
+ *
+ */
 public class DataMentionRecord implements Serializable {
 	private static final long serialVersionUID = 1L;
 	private String pdbId;

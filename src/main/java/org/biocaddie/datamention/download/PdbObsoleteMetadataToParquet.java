@@ -46,7 +46,6 @@ public class PdbObsoleteMetadataToParquet {
     private static final DateFormat inFormat = new SimpleDateFormat("dd-MMM-yy");
     private static final DateFormat outFormat1 = new SimpleDateFormat("yyyy-MM-dd");
     private static final DateFormat outFormat2 = new SimpleDateFormat("yyyy");
-    private static final int NUM_PARTITIONS = 4;
 
 	public static void main(String[] args) {
 		String outputDirectory = args[0];
@@ -75,7 +74,8 @@ public class PdbObsoleteMetadataToParquet {
 		entries.addAll(downloadObsoleteEntries());
 		
 		// convert list to a distributed data object
-		JavaRDD<PdbMetaData> rdd = sc.parallelize(entries, NUM_PARTITIONS);
+        int threads = sc.defaultParallelism();
+		JavaRDD<PdbMetaData> rdd = sc.parallelize(entries, threads);
 		
 		// convert RDD to a DataFrame using a Java Bean as the schema definition
 		DataFrame metadata = sqlContext.createDataFrame(rdd, PdbMetaData.class);

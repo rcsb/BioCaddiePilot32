@@ -30,7 +30,7 @@ import scala.Tuple2;
  * 
  * It first processes the articles in the tar balls (articles.A-B.tar.gz, ..,
  * articles.O-Z.tar.gz), which contain articles in the .nxml format. Then it processes articles 
- * the tar balls (articles.txt.0-9A-B.tar.gz, .., articles.txt.O-Z.tar.gz), which contain extracted
+ * in the tar balls (articles.txt.0-9A-B.tar.gz, .., articles.txt.O-Z.tar.gz), which contain extracted
  * full text articles. It only extracts those articles that are not been found in the .nxml format files.
  * 
  * PMC OC is updated every Saturday. To get the latest data rerun this application
@@ -38,16 +38,16 @@ import scala.Tuple2;
  * 
  * This application can be run in two modes:
  * 
- * 1. Full update mines the the text file from scratch
+ * 1. Full update mines all articles from scratch
  * 
  *      RcsbPdbDataMentionMiner inputDirectory outputDirectory
  *      
- * 2. Incremental update by specifying the date of the last update
+ * 2. Incremental update mines starting from the date of the last update
  * 
- *     RcsbPdbDataMentionMiner inputDirectory outputDirectory -lastUpdated YYYY-MM-DD
+ *      RcsbPdbDataMentionMiner inputDirectory outputDirectory -lastUpdated YYYY-MM-DD
  *     
- * The input directory must contain the tar balls downloaded from PubMedCentral. No other tar balls
- * should be present in the input directory.
+ * The input directory must contain the tar balls downloaded from PubMedCentral. No other tar balls (.tar.gz 
+ * extension) should be present in the input directory.
  * 
  * @author Peter Rose
  *
@@ -227,11 +227,11 @@ public class RcsbPdbDataMentionMiner
 					dataMentions.printSchema();
 					dataMentions.show();
 						
-					dataMentions.coalesce(1).write().format(getOutputFormat()).mode(SaveMode.Overwrite).save(getOutputFileName());
+					dataMentions.write().format(getOutputFormat()).mode(SaveMode.Overwrite).save(getOutputFileName());
 					firstBatch = false;
 				} else {
 					System.out.println("appending records");
-					dataMentions.coalesce(1).write().format(getOutputFormat()).mode(SaveMode.Append).save(getOutputFileName());
+					dataMentions.write().format(getOutputFormat()).mode(SaveMode.Append).save(getOutputFileName());
 				}
 			}
 		}

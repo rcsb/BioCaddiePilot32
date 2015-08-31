@@ -30,7 +30,6 @@ public class PdbCurrentMetadataToParquet {
 	
 	private static final String CURRENT_URL = "http://www.rcsb.org/pdb/rest/customReport.csv?pdbids=*&customReportColumns=pmc,pubmedId,depositionDate&service=wsfile&format=csv&primaryOnly=1";
 	private static final String UNRELEASED_URL = "http://www.rcsb.org/pdb/rest/getUnreleased";
-	private static final int NUM_PARTITIONS = 4;
 
 	public static void main(String[] args) {
 		String outputDirectory = args[0];
@@ -57,7 +56,8 @@ public class PdbCurrentMetadataToParquet {
 		entries.addAll(downloadUnreleased());
 
 		// convert list to a distributed data object
-		JavaRDD<PdbMetaData> rdd = sc.parallelize(entries, NUM_PARTITIONS);
+        int threads = sc.defaultParallelism();
+		JavaRDD<PdbMetaData> rdd = sc.parallelize(entries, threads);
 
 		// Convert RDD to a DataFrame using a Java Bean as the schema definition
 		DataFrame metadata = sqlContext.createDataFrame(rdd, PdbMetaData.class);
@@ -70,7 +70,6 @@ public class PdbCurrentMetadataToParquet {
 		metadata.show();
 		
 		// save DataFrame
-//		metadata.coalesce(NUM_PARTITIONS).write().mode(SaveMode.Overwrite).parquet(fileName);
 	    metadata.write().format(outputFormat).mode(SaveMode.Overwrite).save(outputFileName);
 
 		sc.close();
