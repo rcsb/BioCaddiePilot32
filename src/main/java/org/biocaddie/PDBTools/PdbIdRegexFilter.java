@@ -1,9 +1,5 @@
 package org.biocaddie.PDBTools;
 
-
-
-
-
 import java.util.regex.Pattern;
 
 import org.apache.spark.api.java.function.Function;
@@ -27,12 +23,7 @@ public class PdbIdRegexFilter implements Function<Tuple2<String, String>, Boolea
 	/*
 	 * PDB ID and partial PDB DOI regular expression
 	 */
-	//private static final Pattern PDB_GENERAL_PATTERN = Pattern.compile("(\\b|pdb|PDB)[1-9]\\w{3}\\b");
 	private static final Pattern PDB_GENERAL_PATTERN = Pattern.compile("(\\b|pdb|PDB)[1-9][A-Za-z0-9]{3}\\b");
-	/*
-	 * 4-digit integer regular expression
-	 */
-	private static final Pattern DIGITS = Pattern.compile("\\d{4}");
 	/*
 	 * List of currently used PDB IDs that are shared among compute nodes
 	 */

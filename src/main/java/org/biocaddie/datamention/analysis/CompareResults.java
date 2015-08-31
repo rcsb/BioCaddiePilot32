@@ -3,9 +3,6 @@ package org.biocaddie.datamention.analysis;
 import java.io.FileNotFoundException;
 import java.util.Arrays;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.Logger;
-import org.apache.spark.SparkConf;
 import org.apache.spark.SparkContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.Row;

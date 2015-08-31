@@ -1,7 +1,5 @@
 package org.biocaddie.datamention.mine;
 
-import java.util.Arrays;
-
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.SQLContext;
@@ -21,7 +19,7 @@ import org.rcsb.spark.util.SparkUtils;
  */
 public class PdbDataMentionTrainingSetGenerator
 {
-	private static final String PDB_DATA_MENTIONS = "PdbDataMentions.parquet";
+	private static final String PDB_DATA_MENTIONS = "PdbDataMentionRaw.parquet";
 	private static final String PMC_FILE_METATDATA = "PmcFileMetadata.parquet";
 	private static final String PMC_ARTICLE_METADATA = "PmcArticleMetadata.parquet";
 	private static final String PDB_CURRENT_METADATA = "PdbCurrentMetaData.parquet";
@@ -38,20 +36,19 @@ public class PdbDataMentionTrainingSetGenerator
 		int threads = sc.defaultParallelism();
 
 		// Read data sources
-		System.out.println(Arrays.toString(args));
 
-		// dataMentions: pdbId, fileName, sentence, matchType;
+		// dataMentions
 		String dataMentionFileName = workingDirectory + "/" + PDB_DATA_MENTIONS;
 		DataFrame dataMentions = sqlContext.read().parquet(dataMentionFileName).repartition(threads).cache();
 		System.out.println("PDB Data Mentions : " + dataMentions.count());
 		sqlContext.registerDataFrameAsTable(dataMentions, "dataMentions");
 		
-		// pmcFileMetadata: pmcId, fileName, lastUpdated
+		// pmcFileMetadata
 		String pmcFileMetadataFileName = workingDirectory + "/" + PMC_FILE_METATDATA;
 		DataFrame pmc1 = sqlContext.read().parquet(pmcFileMetadataFileName).cache();
 		System.out.println("PMC File Metadata: " + pmc1.count());
 		
-		// pmcArticleMetadata: pmcId, pmId, publicationYear
+		// pmcArticleMetadata
 		String pmcArticleMetadataFileName = workingDirectory + "/" + PMC_ARTICLE_METADATA;
 		DataFrame pmc2 = sqlContext.read().parquet(pmcArticleMetadataFileName);
 		System.out.println("PMC Article Metadata: " + pmc2.count());
@@ -75,19 +72,20 @@ public class PdbDataMentionTrainingSetGenerator
 		dataMentions.unpersist();
 		pmc.unpersist();
 
-		// citations: pdbId, pmcId, pmId, depositionYear, depositionDate, entryType;
+		// PDB metadata for current entries
 		String pdbCurrentMetadataFileName = workingDirectory + "/" + PDB_CURRENT_METADATA;
 		DataFrame currentEntries = sqlContext.read().parquet(pdbCurrentMetadataFileName).cache();
 		System.out.println("PDB Current Metadata: " + currentEntries.count());
 		
+		// PDB metadata for obsolete entries
 		String pdbObsoleteMetadataFileName = workingDirectory + "/" + PDB_OBSOLETE_METADATA;
 		DataFrame obsoleteEntries = sqlContext.read().parquet(pdbObsoleteMetadataFileName).cache();
+		
+		// Merge PDB metadata
 		DataFrame pdbMetadata = currentEntries.unionAll(obsoleteEntries).repartition(threads).cache();
 		sqlContext.registerDataFrameAsTable(pdbMetadata, "pdbMetadata");
 		currentEntries.unpersist();
 		obsoleteEntries.unpersist();
-
-		int nullCount = 0;
 		
 		// look for both pmcId and pmID matches
 		DataFrame merged = sqlContext.sql(
@@ -95,8 +93,6 @@ public class PdbDataMentionTrainingSetGenerator
 		merged.repartition(threads);
 		sqlContext.registerDataFrameAsTable(merged, "merged");
 		superset.unpersist();
-
-		System.out.println("Null count: " + nullCount);
 
 		DataFrame positivesI = sqlContext.sql(
 				"SELECT m.pdb_id, m.match_type, m.deposition_year, m.pmc_id, m.pm_id, m.publication_year, m.primary_citation, m.sentence, m.blinded_sentence, 1.0 as label FROM merged m WHERE m.primary_citation = 1 AND m.publication_year >= m.deposition_year").cache();

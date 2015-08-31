@@ -8,7 +8,7 @@ import java.util.Properties;
 import java.util.Set;
 
 import org.apache.spark.api.java.function.FlatMapFunction;
-import org.biocaddie.PDBTools.PDBFinder;
+import org.biocaddie.PDBTools.PdbIdFinder;
 
 import scala.Tuple2;
 import edu.stanford.nlp.ling.CoreAnnotations;
@@ -53,11 +53,11 @@ public class PdbDataMentionMapper implements FlatMapFunction<Tuple2<String, byte
 		for (CoreMap cmSentence : sentences) {
 			String sentence = cmSentence.toString();
 
-			if (PDBFinder.containsPdbId(sentence)) {
-				Set<String> pdbIds = PDBFinder.getPdbIds(sentence);
+			if (PdbIdFinder.containsPdbId(sentence)) {
+				Set<String> pdbIds = PdbIdFinder.getPdbIds(sentence);
 
-				String matchType = PDBFinder.getPdbMatchType(sentence);
-				Boolean match = PDBFinder.isPositivePattern(matchType);
+				String matchType = PdbIdFinder.getPdbMatchType(sentence);
+				Boolean match = PdbIdFinder.isPositivePattern(matchType);
 				sentence = removeXmlTags(sentence);
 				String tSentence = trimExtraCharacters(sentence);
 				String bSentence = getBlindedSentence(pdbIds, tSentence);

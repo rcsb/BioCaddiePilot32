@@ -1,6 +1,5 @@
 package org.biocaddie.datamention.train;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import org.apache.spark.SparkContext;
@@ -8,33 +7,38 @@ import org.apache.spark.ml.PipelineModel;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SaveMode;
+import org.rcsb.spark.util.DataFrameToDelimitedFileWriter;
 import org.rcsb.spark.util.SparkUtils;
 
 
 public class PdbPrimaryCitationPredictor {
 
-	public static void main(String[] args) throws FileNotFoundException {
+	public static void main(String[] args) throws ClassNotFoundException, IOException {
 		// Set up contexts.
 		long start = System.nanoTime();
 		
 		SparkContext sc = SparkUtils.getSparkContext();
 		SQLContext sqlContext = SparkUtils.getSqlContext(sc);
 		
-		DataFrame positivesII = sqlContext.read().parquet(args[0]).cache();
+		String workingDirectory = args[0];
+		
+		String positivesIIFileName = workingDirectory + "/" + "PositivesII.parquet";
+		DataFrame positivesII = sqlContext.read().parquet(positivesIIFileName).cache();
 		positivesII.show(5);
-		DataFrame unassigned = sqlContext.read().parquet(args[1]).cache();
+		
+		String unassignedFileName = workingDirectory + "/" + "Unassigned.parquet";
+		DataFrame unassigned = sqlContext.read().parquet(unassignedFileName).cache();
 		unassigned.show(5);
 		DataFrame union = positivesII.unionAll(unassigned);
 		
-		DataFrame predicted = predict(sqlContext, union, args[2]);
-		predicted.write().mode(SaveMode.Overwrite).parquet(args[3]);
+		String modelFileName = workingDirectory + "/" + "PdbPrimaryCitationModel.ser";
+		DataFrame predicted = predict(sqlContext, union, modelFileName);
 		
-	    try {
-	    	DataFrameToDelimitedFileWriter.writeTsv(args[4], predicted);
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
+		String predictionParquetFileName = workingDirectory + "/" + "PdbPrimaryCitationPredicted.parquet";
+		predicted.write().format("parquet").mode(SaveMode.Overwrite).save(predictionParquetFileName);
+		
+		String predictionTsvFileName = workingDirectory + "/" + "PdbPrimaryCitationPredicted.tsv";
+	    DataFrameToDelimitedFileWriter.writeTsv(predictionTsvFileName, predicted);
 
 	    long end = System.nanoTime();
 	    System.out.println("Time: " + (end-start)/1E9 + " sec.");
@@ -42,23 +46,15 @@ public class PdbPrimaryCitationPredictor {
 		sc.stop();
 	}
 
-	private static DataFrame predict(SQLContext sqlContext, DataFrame unassigned, String modelFileName) {
-		PipelineModel model = null;
-		try {
-			model = (PipelineModel)ModelSerializer.deserialize(modelFileName);
-		} catch (IOException | ClassNotFoundException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
+	private static DataFrame predict(SQLContext sqlContext, DataFrame unassigned, String modelFileName) throws ClassNotFoundException, IOException {
+		PipelineModel model = (PipelineModel)ObjectSerializer.deserialize(modelFileName);
 
 		// predict on data mentions
 		DataFrame predictionResults = model.transform(unassigned).cache();	
 		sqlContext.registerDataFrameAsTable(predictionResults, "prediction");
-		System.out.println(predictionResults.schema());
 
-		DataFrame predicted = sqlContext.sql("SELECT h.pdbId, h.matchType, h.depositionYear, h.pmcId, h.pmId, h.primaryCitation, h.publicationYear, h.sentence FROM prediction h WHERE h.prediction = 1.0").cache();
-//		long positivePredictions = predicted.count();
-		//	predicted.coalesce(1).write().mode(SaveMode.Overwrite).parquet(fileName);
+		DataFrame predicted = sqlContext.sql("SELECT h.pdb_id, h.match_type, h.deposition_year, h.pmc_id, h.pm_id, h.primary_citation, h.publication_year, h.sentence FROM prediction h WHERE h.prediction = 1.0").cache();
+
 		return predicted;
 	}
 }

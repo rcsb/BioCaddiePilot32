@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
 /**
  * Created by rahul on 3/16/15.
  */
-public class PDBFinder implements Serializable {
+public class PdbIdFinder implements Serializable {
     private static final long serialVersionUID = 1L;
     /*
      * General pattern to match a pdb id. Note, we only allow all upper case or all lower case patterns
@@ -29,17 +29,13 @@ public class PDBFinder implements Serializable {
     private static final Pattern RCSB_PDB_URL_PATTERN1 = Pattern.compile("explore.do.structureId=" + PDB_PATTERN.pattern() + "\\b");
     private static final Pattern RCSB_PDB_URL_PATTERN2 = Pattern.compile("explore.cgi.pdbId="+ PDB_PATTERN.pattern() + "\\b");
     private static final Pattern RCSB_PDB_URL_PATTERN3 = Pattern.compile("structidSearch.do.structureId="+ PDB_PATTERN.pattern() + "\\b");
-//    public static final Pattern EXT_LINK_PATTERN = Pattern.compile("<ext-link ext-link-type=\"pdb\" xlink:href=\"" + PDB_PATTERN.pattern());
     private static final Pattern PDB_NONE_PATTERN = Pattern.compile("\\b" + PDB_PATTERN.pattern() + "\\b");
-    /*
-     * PDB ID in href='...."
-     */
     private static final Pattern PDB_EXT_LINK_PATTERN = Pattern.compile("ext-link-type=\"pdb\" xlink:href=\""
             + PDB_PATTERN.pattern()
             + "\">");
 
     /*
-     * PDB skip one word pattern: PDB code 1XYZ, pdb code: 1xyz, PDB assession 1xyz, ...
+     * PDB skip word patterns: PDB code 1XYZ, pdb code: 1xyz, PDB accession 1xyz, ...
      */
     private static final Pattern PDB_SKIP_0_PATTERN = Pattern.compile("\\b(pdb|PDB)\\W*" + PDB_PATTERN.pattern() + "\\b");
     private static final Pattern PDB_SKIP_1_PATTERN = Pattern.compile("\\b(pdb|PDB)\\W*\\w+\\W*" + PDB_PATTERN.pattern() + "\\b");
@@ -146,7 +142,6 @@ public class PDBFinder implements Serializable {
     		Matcher doiMatcher = PDB_DOI_PATTERN.matcher(sentence);
     		if (doiMatcher.find()) {
                 String doi = doiMatcher.group().substring(11,15).toUpperCase();
-//                System.out.println(doi);
                 pdbIds.add(doi);
     		}
     	}

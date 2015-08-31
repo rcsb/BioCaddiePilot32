@@ -23,11 +23,19 @@ public class AnalyzeDataMentions {
 		String pdbMentionFileName = workingDirectory + "/PdbDataMentionFinal.parquet";
 		DataFrame mentions = sqlContext.read().parquet(pdbMentionFileName).cache(); 
 		System.out.println("PDB data mentions: " + mentions.count());
+		
 		DataFrame mentionsByYear = mentions.groupBy("publication_year").count().coalesce(1).cache();
 		mentionsByYear = mentionsByYear.withColumnRenamed("count", "mentions");
 		sqlContext.registerDataFrameAsTable(mentionsByYear, "mentionsByYear");
+		System.out.println("Group PDB Data Mentions by Publication Year");
 		mentionsByYear.printSchema();
 		mentionsByYear.show(100);
+		
+		DataFrame mentionsByType = mentions.groupBy("match_type").count().coalesce(1).cache();
+		mentionsByType = mentionsByYear.withColumnRenamed("count", "types");
+		System.out.println("Group PDB Data Mentions by Match Types");
+		mentionsByType.printSchema();
+		mentionsByType.show(100);
 		
 		System.out.println("aggregate by pmc_id and groupBy publication_year");
 		Map<String,String>  aggregates = new HashMap<String,String>();
@@ -59,6 +67,24 @@ public class AnalyzeDataMentions {
         cache.show(200);
         cache.select(cache.col("publication_year"), cache.col("publications"), cache.col("mentions"), cache.col("mentions").divide(cache.col("publications"))).show(50);		
 		
+//    	union.groupBy("depositionYear").count().show(100);
+//		DataFrame subset2 = set2.select("pdbId", "depositionYear", "pmcId", "pmId", "publicationYear").distinct();
+//		union.filter("publicationYear IS NOT null").groupBy("publicationYear").count().show(100);
+//		union.groupBy("depositionYear").mean("publicationYear").show(100);
+//		union.groupBy("depositionYear").min("publicationYear").show(100);//
+//		union.groupBy("depositionYear").max("publicationYear").show(100);
+		
+//		union.groupBy("pdbId", "pmcId").count().show(100);
+//		DataFrame unique = union.distinct().cache();
+//		DataFrame counts = unique.groupBy("pmcId").count().cache();
+//		counts.sort("count").show(100);
+//		counts.sort("count").groupBy("count").count().show(100);
+
+	//	union.groupBy("depositionYear").agg(aggregates).show(100);
+//		System.out.println("Unique pdbIds: " + unique.select("pdbId").distinct().count());
+//		System.out.println("Unique pmcIds: " + unique.select("pmcId").distinct().count());
+		
+//		System.out.println("Distinct mentions: " + unique.count());
 		sc.stop();
 	}
 }

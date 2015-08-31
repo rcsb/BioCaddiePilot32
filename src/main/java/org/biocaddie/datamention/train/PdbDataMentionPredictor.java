@@ -1,6 +1,5 @@
 package org.biocaddie.datamention.train;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 
 import org.apache.spark.SparkContext;
@@ -19,7 +18,7 @@ import org.rcsb.spark.util.SparkUtils;
 public class PdbDataMentionPredictor {
 	private static final String exclusionFilter = "pdb_id != '3DNA' AND pdb_id != '1AND' AND pdb_id NOT LIKE '%H2O'";
 
-	public static void main(String[] args) throws FileNotFoundException {
+	public static void main(String[] args) throws ClassNotFoundException, IOException {
 		// Set up contexts.
 		long start = System.nanoTime();
 		
@@ -49,22 +48,18 @@ public class PdbDataMentionPredictor {
 	 * @param unassigned dataframe with unassigned date
 	 * @param modelFileName
 	 * @return
+	 * @throws IOException 
+	 * @throws ClassNotFoundException 
 	 */
-	private static DataFrame predict(SQLContext sqlContext, DataFrame unassigned, String modelFileName) {
-		PipelineModel model = null;
-		try {
-			model = (PipelineModel)ModelSerializer.deserialize(modelFileName);
-		} catch (IOException | ClassNotFoundException e1) {
-			// TODO Auto-generated catch block
-			e1.printStackTrace();
-		}
+	private static DataFrame predict(SQLContext sqlContext, DataFrame unassigned, String modelFileName) throws ClassNotFoundException, IOException {
+		PipelineModel model = (PipelineModel)ObjectSerializer.deserialize(modelFileName);
 
 		// predict on data mentions
-		DataFrame predictionResults = model.transform(unassigned).cache();	
-		sqlContext.registerDataFrameAsTable(predictionResults, "prediction");
-		System.out.println(predictionResults.schema());
+		DataFrame predictedResults = model.transform(unassigned).cache();	
+		sqlContext.registerDataFrameAsTable(predictedResults, "predictionResults");
 
-		DataFrame predicted = sqlContext.sql("SELECT h.pdb_id, h.match_type, h.deposition_year, h.pmc_id, h.pm_id, h.publication_year, h.primary_citation, h.sentence, h.blinded_sentence, h.label FROM prediction h WHERE h.prediction = 1.0").cache();
+		// select positive predictions
+		DataFrame predicted = sqlContext.sql("SELECT h.pdb_id, h.match_type, h.deposition_year, h.pmc_id, h.pm_id, h.publication_year, h.primary_citation, h.sentence, h.blinded_sentence, h.label FROM predictedResults h WHERE h.prediction = 1.0").cache();
 
 		return predicted;
 	}

@@ -40,11 +40,11 @@ import scala.Tuple2;
  * 
  * 1. Full update mines all articles from scratch
  * 
- *      RcsbPdbDataMentionMiner inputDirectory outputDirectory
+ *      PdbDataMentionMiner inputDirectory outputDirectory
  *      
  * 2. Incremental update mines starting from the date of the last update
  * 
- *      RcsbPdbDataMentionMiner inputDirectory outputDirectory -lastUpdated YYYY-MM-DD
+ *      PdbDataMentionMiner inputDirectory outputDirectory -lastUpdated YYYY-MM-DD
  *     
  * The input directory must contain the tar balls downloaded from PubMedCentral. No other tar balls (.tar.gz 
  * extension) should be present in the input directory.
@@ -52,10 +52,10 @@ import scala.Tuple2;
  * @author Peter Rose
  *
  */
-public class RcsbPdbDataMentionMiner
+public class PdbDataMentionMiner
 {
 	private static final String PMC_FILE_METADATA = "PmcFileMetadata.parquet";
-	private static final String OUTPUT_FILE_NAME = "PdbDataMentions.parquet";
+	private static final String OUTPUT_FILE_NAME = "PdbDataMentionRaw.parquet";
 	private static final String OUTPUT_FORMAT = "parquet";
 	
 	private static final int NUM_TASKS = 3;
@@ -78,7 +78,7 @@ public class RcsbPdbDataMentionMiner
 	{
 		long start = System.nanoTime();
 		
-		RcsbPdbDataMentionMiner miner = new RcsbPdbDataMentionMiner();
+		PdbDataMentionMiner miner = new PdbDataMentionMiner();
 		miner.writeDataMentions(args);
 		
 		long time = System.nanoTime() - start;

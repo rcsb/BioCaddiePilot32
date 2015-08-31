@@ -5,6 +5,7 @@ import java.io.FileNotFoundException;
 import org.apache.spark.SparkContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.SQLContext;
+import org.rcsb.spark.util.DataFrameToDelimitedFileWriter;
 import org.rcsb.spark.util.SparkUtils;
 
 public class ParquetToTsv {

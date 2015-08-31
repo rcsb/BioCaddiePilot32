@@ -1,8 +1,5 @@
 package org.biocaddie.datamention.train;
 
-
-
-
 import java.io.IOException;
 import java.io.PrintWriter;
 
@@ -28,6 +25,8 @@ public class PdbDataMentionTrainer {
 		
 		String workingDirectory = args[0];
 		
+		long start = System.nanoTime();
+		
 		// Set up contexts.
 		SparkContext sc = SparkUtils.getSparkContext();
 		SQLContext sqlContext = SparkUtils.getSqlContext(sc);
@@ -52,16 +51,15 @@ public class PdbDataMentionTrainer {
 		String unassignedFileName = workingDirectory + "/Unassigned.parquet";
 		DataFrame unassigned = sqlContext.read().parquet(unassignedFileName).filter(exclusionFilter).cache();
 //		long unassignedCount = unassigned.count();
-		
-		long start = System.nanoTime();
+			
+		DataFrame positives = positivesI.unionAll(positivesII);
+		DataFrame negatives = negativesI.unionAll(negativesII);
 		
 		String metricsFileName = workingDirectory + "/PdbDataMentionMetrics.txt";
 		PrintWriter writer = new PrintWriter(metricsFileName);
 		
-		DataFrame positives = positivesI.unionAll(positivesII);
-		DataFrame negatives = negativesI.unionAll(negativesII);
-		
 		String modelFileName = workingDirectory + "/PdbDataMentionModel.ser";
+		writer.println("PDB Data Mention Classification: Logistic Regression Results");
 		writer.println(train(sqlContext, positives, negatives, unassigned, modelFileName));
 		writer.close();
 
@@ -84,7 +82,7 @@ public class PdbDataMentionTrainer {
 	PipelineModel model = fitLogisticRegressionModel(training);
 	
 	try {
-	     ModelSerializer.serialize(model, modelFileName);
+	     ObjectSerializer.serialize(model, modelFileName);
 	} catch (IOException e1) {
 		// TODO Auto-generated catch block
 		e1.printStackTrace();
@@ -99,6 +97,7 @@ public class PdbDataMentionTrainer {
 	testResults.printSchema();
 	
     StringBuilder sb = new StringBuilder();
+	
 	sb.append(getMetrics(trainingResults, "Training\n"));
 	sb.append(model.explainParams() + "\n");
 	
