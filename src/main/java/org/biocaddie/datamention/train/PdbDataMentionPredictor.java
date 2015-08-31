@@ -11,12 +11,13 @@ import org.apache.spark.sql.SaveMode;
 import org.rcsb.spark.util.SparkUtils;
 
 /**
+ * This class predicts PDB Data Mentions as either positive or negative data mention.
  * 
  * @author Peter Rose
  *
  */
 public class PdbDataMentionPredictor {
-	private static final String exclusionFilter = "pdbId != '3DNA' AND pdbId != '1AND' AND pdbId NOT LIKE '%H2O'";
+	private static final String exclusionFilter = "pdb_id != '3DNA' AND pdb_id != '1AND' AND pdb_id NOT LIKE '%H2O'";
 
 	public static void main(String[] args) throws FileNotFoundException {
 		// Set up contexts.
@@ -25,20 +26,17 @@ public class PdbDataMentionPredictor {
 		SparkContext sc = SparkUtils.getSparkContext();
 		SQLContext sqlContext = SparkUtils.getSqlContext(sc);
 		
-		DataFrame unassigned = sqlContext.read().parquet(args[0]).filter(exclusionFilter);
-//		long unassignedCount = unassigned.count();
+		String workingDirectory = args[0];
 		
-		System.out.println("Using model: " + args[1]);
-		DataFrame predicted = predict(sqlContext, unassigned, args[1]);
-		predicted.write().mode(SaveMode.Overwrite).parquet(args[3]);
+		String unassignedFileName = workingDirectory + "/Unassigned.parquet";
+		DataFrame unassigned = sqlContext.read().parquet(unassignedFileName).filter(exclusionFilter);
 		
-	    try {
-	    	DataFrameToDelimitedFileWriter.write(args[2], "\t", predicted);
-		} catch (FileNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		}
-
+		String modelFileName = workingDirectory = "/Model.ser";
+		DataFrame predicted = predict(sqlContext, unassigned, modelFileName);
+		
+		String predictedFileName = workingDirectory + "/Predicted.parquet";
+		predicted.write().mode(SaveMode.Overwrite).parquet(predictedFileName);
+		
 	    long end = System.nanoTime();
 	    System.out.println("Time: " + (end-start)/1E9 + " sec.");
 	    
@@ -66,7 +64,7 @@ public class PdbDataMentionPredictor {
 		sqlContext.registerDataFrameAsTable(predictionResults, "prediction");
 		System.out.println(predictionResults.schema());
 
-		DataFrame predicted = sqlContext.sql("SELECT h.pdbId, h.matchType, h.depositionYear, h.pmcId, h.pmId, h.publicationYear, h.primaryCitation, h.sentence, h.blindedSentence, h.label FROM prediction h WHERE h.prediction = 1.0").cache();
+		DataFrame predicted = sqlContext.sql("SELECT h.pdb_id, h.match_type, h.deposition_year, h.pmc_id, h.pm_id, h.publication_year, h.primary_citation, h.sentence, h.blinded_sentence, h.label FROM prediction h WHERE h.prediction = 1.0").cache();
 
 		return predicted;
 	}
