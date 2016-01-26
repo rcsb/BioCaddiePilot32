@@ -5,4 +5,4 @@
  * @author peter
  *
  */
-package biocaddie.citationanalysis.network.fast;
+package org.biocaddie.citationanalysis.network.fast;

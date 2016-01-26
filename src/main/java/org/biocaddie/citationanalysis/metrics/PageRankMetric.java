@@ -1,4 +1,4 @@
-package biocaddie.citationanalysis.metrics;
+package org.biocaddie.citationanalysis.metrics;
 
 import java.io.IOException;
 

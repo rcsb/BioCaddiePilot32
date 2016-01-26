@@ -34,6 +34,8 @@ public class PdbDataMentionMapper implements FlatMapFunction<Tuple2<String, byte
 		textPipeline = new StanfordCoreNLP(props);
 //		stopWords = loadStopWords(); are not used currently
 	}
+	
+//	private static StanfordLemmatizer lemmatizer = new StanfordLemmatizer();
 
 	@Override
 	public Iterable<DataMentionRecord> call(Tuple2<String, byte[]> tuple) throws Exception {
@@ -61,6 +63,7 @@ public class PdbDataMentionMapper implements FlatMapFunction<Tuple2<String, byte
 				sentence = removeXmlTags(sentence);
 				String tSentence = trimExtraCharacters(sentence);
 				String bSentence = getBlindedSentence(pdbIds, tSentence);
+//				bSentence = lemmatizer.lemmatizeAsString(bSentence);
 				// bSentence = removeStopWords(bSentence); // removing stop words makes no difference, for now leaving it out
 
 				for (String pdbId: pdbIds) {

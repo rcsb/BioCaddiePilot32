@@ -1,4 +1,4 @@
-package biocaddie.citationanalysis.metrics;
+package org.biocaddie.citationanalysis.metrics;
 /*
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -49,16 +49,8 @@ import java.util.regex.Pattern;
  * 
  * https://www.codatlas.com/github.com/apache/spark/HEAD/examples/src/main/java/org/apache/spark/examples/JavaPageRank.java?line=1
  */
-public final class JavaPageRank {
+public final class JavaPageRankInt {
   private static final Pattern SPACES = Pattern.compile("\\s+");
-
-  static void showWarning() {
-    String warning = "WARN: This is a naive implementation of PageRank " +
-            "and is given as an example! \n" +
-            "Please use the PageRank implementation found in " +
-            "org.apache.spark.graphx.lib.PageRank for more conventional use.";
-    System.err.println(warning);
-  }
 
   private static class Sum implements Function2<Double, Double, Double> {
     @Override
@@ -73,8 +65,7 @@ public final class JavaPageRank {
       System.exit(1);
     }
 
-    showWarning();
-
+    double alpha = 0.5;
     JavaSparkContext ctx = SparkUtils.getJavaSparkContext("JavaPageRank");
 
     // Loads in input file. It should be in format of:
@@ -86,33 +77,34 @@ public final class JavaPageRank {
     JavaRDD<String> lines = ctx.textFile(args[0]);
 
     // Loads all URLs from input file and initialize their neighbors.
-    JavaPairRDD<String, Iterable<String>> links = lines.mapToPair(new PairFunction<String, String, String>() {
+    JavaPairRDD<Integer, Iterable<Integer>> links = lines.mapToPair(new PairFunction<String, Integer, Integer>() {
       @Override
-      public Tuple2<String, String> call(String s) {
+      public Tuple2<Integer, Integer> call(String s) {
         String[] parts = SPACES.split(s);
-        return new Tuple2<String, String>(parts[0], parts[1]);
+        return new Tuple2<Integer, Integer>(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
       }
     }).distinct().groupByKey().cache();
 
     // Loads all URLs with other URL(s) link to from input file and initialize ranks of them to one.
-    JavaPairRDD<String, Double> ranks = links.mapValues(new Function<Iterable<String>, Double>() {
+    
+    JavaPairRDD<Integer, Double> ranks = links.mapValues(new Function<Iterable<Integer>, Double>() {
       @Override
-      public Double call(Iterable<String> rs) {
+      public Double call(Iterable<Integer> rs) {
         return 1.0;
       }
     });
 
     // Calculates and updates URL ranks continuously using PageRank algorithm.
-    for (int current = 0; current < Integer.parseInt(args[1]); current++) {
+    for (int current = 0; current < Integer.parseInt(args[2]); current++) {
       // Calculates URL contributions to the rank of other URLs.
-      JavaPairRDD<String, Double> contribs = links.join(ranks).values()
-        .flatMapToPair(new PairFlatMapFunction<Tuple2<Iterable<String>, Double>, String, Double>() {
+      JavaPairRDD<Integer, Double> contribs = links.join(ranks).values()
+        .flatMapToPair(new PairFlatMapFunction<Tuple2<Iterable<Integer>, Double>, Integer, Double>() {
           @Override
-          public Iterable<Tuple2<String, Double>> call(Tuple2<Iterable<String>, Double> s) {
+          public Iterable<Tuple2<Integer, Double>> call(Tuple2<Iterable<Integer>, Double> s) {
             int urlCount = Iterables.size(s._1);
-            List<Tuple2<String, Double>> results = new ArrayList<Tuple2<String, Double>>();
-            for (String n : s._1) {
-              results.add(new Tuple2<String, Double>(n, s._2() / urlCount));
+            List<Tuple2<Integer, Double>> results = new ArrayList<Tuple2<Integer, Double>>();
+            for (Integer n : s._1) {
+              results.add(new Tuple2<Integer, Double>(n, s._2() / urlCount));
             }
             return results;
           }
@@ -122,16 +114,35 @@ public final class JavaPageRank {
       ranks = contribs.reduceByKey(new Sum()).mapValues(new Function<Double, Double>() {
         @Override
         public Double call(Double sum) {
-          return 0.15 + sum * 0.85;
+            return alpha + sum * 1 - alpha;
+ //         return 0.15 + sum * 0.85;
         }
       });
     }
 
-    // Collects all URL ranks and dump them to console.
-    List<Tuple2<String, Double>> output = ranks.collect();
-    for (Tuple2<?,?> tuple : output) {
-        System.out.println(tuple._1() + " has rank: " + tuple._2() + ".");
+    JavaRDD<String> idLines = ctx.textFile(args[1]);
+    JavaPairRDD<Integer, Integer> pmIds = idLines.mapToPair(new PairFunction<String, Integer, Integer>() {
+        @Override
+        public Tuple2<Integer, Integer> call(String s) {
+          String[] parts = s.split(",");
+          return new Tuple2<Integer, Integer>(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
+        }
+      });
+    
+    ranks = ranks.filter(t -> t._2 > 0.8);
+    
+    JavaPairRDD<Integer, Tuple2<Double, Integer>> join = ranks.join(pmIds);
+    
+    List<Tuple2<Integer, Tuple2<Double, Integer>>> collect = join.collect();
+    for (Tuple2<Integer,Tuple2<Double, Integer>> t: collect) {
+    	System.out.println(t._1 + "," + t._2._2 + "," + t._2._1 );
     }
+
+    // Collects all URL ranks and dump them to console.
+//    List<Tuple2<Integer, Double>> output = ranks.collect();
+//    for (Tuple2<?,?> tuple : output) {
+//        System.out.println(tuple._1() + " has rank: " + tuple._2() + ".");
+//    }
 
     ctx.stop();
   }

@@ -1,7 +1,6 @@
-package biocaddie.citationanalysis.network.fast;
+package org.biocaddie.citationanalysis.network.fast;
 
 import it.unimi.dsi.fastutil.ints.Int2DoubleMap;
-import it.unimi.dsi.fastutil.objects.ObjectSet;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -20,10 +19,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Queue;
-
-import org.biocaddie.citationanalysis.network.Network;
 
 /**
  * Currently this class has three features:

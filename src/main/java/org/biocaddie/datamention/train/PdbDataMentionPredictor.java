@@ -56,7 +56,7 @@ public class PdbDataMentionPredictor {
 
 		// predict on data mentions
 		DataFrame predictedResults = model.transform(unassigned).cache();	
-		sqlContext.registerDataFrameAsTable(predictedResults, "predictionResults");
+		sqlContext.registerDataFrameAsTable(predictedResults, "predictedResults");
 
 		// select positive predictions
 		DataFrame predicted = sqlContext.sql("SELECT h.pdb_id, h.match_type, h.deposition_year, h.pmc_id, h.pm_id, h.publication_year, h.primary_citation, h.sentence, h.blinded_sentence, h.label FROM predictedResults h WHERE h.prediction = 1.0").cache();

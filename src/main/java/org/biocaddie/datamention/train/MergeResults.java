@@ -6,7 +6,6 @@ import org.apache.spark.SparkContext;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SaveMode;
-import org.rcsb.spark.util.DataFrameToDelimitedFileWriter;
 import org.rcsb.spark.util.SparkUtils;
 
 /**
@@ -49,17 +48,11 @@ public class MergeResults {
 		String detailsParquetFileName = workingDirectory + "/PdbDataMentionDetails.parquet";
 		union.write().format("parquet").mode(SaveMode.Overwrite).save(detailsParquetFileName);
 		
-		String detailsTsvFileName = workingDirectory + "/PdbDataMentionDetails.tsv";
-		DataFrameToDelimitedFileWriter.writeTsv(detailsTsvFileName, union);
-		
 		// save unique PDB ID, PMC ID data mention pairs
 		DataFrame unique = union.drop("match_type").drop("sentence").distinct().sort("pdb_id", "pmc_id");
 		
 		String uniqueParquetFileName = workingDirectory + "/PdbDataMentionUnique.parquet";
 		unique.write().format("parquet").mode(SaveMode.Overwrite).save(uniqueParquetFileName);
-		
-		String uniqueTsvFileName = workingDirectory + "/PdbDataMentionUnique.tsv";
-		DataFrameToDelimitedFileWriter.writeTsv(uniqueTsvFileName, unique);
 
 	    long end = System.nanoTime();
 	    System.out.println("Time: " + (end-start)/1E9 + " sec.");

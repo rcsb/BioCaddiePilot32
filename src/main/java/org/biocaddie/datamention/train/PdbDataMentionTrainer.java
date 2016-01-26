@@ -34,6 +34,7 @@ public class PdbDataMentionTrainer {
 		// read positive data set, cases where the PDB ID occurs in the sentence of the primary citation
 		String positivesIFileName = workingDirectory + "/PositivesI.parquet";
 		DataFrame positivesI = sqlContext.read().parquet(positivesIFileName); 
+
 //		long positiveCountI = positivesI.count();
 		
 		String positivesIIFileName = workingDirectory + "/PositivesII.parquet";
@@ -50,10 +51,19 @@ public class PdbDataMentionTrainer {
 		
 		String unassignedFileName = workingDirectory + "/Unassigned.parquet";
 		DataFrame unassigned = sqlContext.read().parquet(unassignedFileName).filter(exclusionFilter).cache();
+		unassigned = unassigned.withColumn("label", unassigned.col("label").cast("double"));
+		unassigned.printSchema();
 //		long unassignedCount = unassigned.count();
 			
-		DataFrame positives = positivesI.unionAll(positivesII);
+		DataFrame positives = positivesI.unionAll(positivesII).cache();
+		positives = positives.withColumn("label", positives.col("label").cast("double"));
+		positivesI.unpersist();
+		positivesII.unpersist();
+		
 		DataFrame negatives = negativesI.unionAll(negativesII);
+		negatives = negatives.withColumn("label", negatives.col("label").cast("double"));
+		negativesI.unpersist();
+		negativesII.unpersist();
 		
 		String metricsFileName = workingDirectory + "/PdbDataMentionMetrics.txt";
 		PrintWriter writer = new PrintWriter(metricsFileName);
@@ -77,6 +87,8 @@ public class PdbDataMentionTrainer {
 	DataFrame[] split = all.randomSplit(new double[]{.8, .2}, 1); 
 	DataFrame training = split[0].cache();	
 	DataFrame test = split[1].cache();
+	training.printSchema();
+	training.show();
 
 	// fit logistic regression model
 	PipelineModel model = fitLogisticRegressionModel(training);
@@ -91,9 +103,11 @@ public class PdbDataMentionTrainer {
 
 	// predict on training data to evaluate goodness of fit
 	DataFrame trainingResults = model.transform(training).cache();
-
+    training.unpersist();
+    
 	// predict on test set to evaluate goodness of fit
-	DataFrame testResults = model.transform(test).cache();	
+	DataFrame testResults = model.transform(test).cache();
+	test.unpersist();
 	testResults.printSchema();
 	
     StringBuilder sb = new StringBuilder();

@@ -28,6 +28,7 @@ public class PdbCurrentMetadataToParquet {
 	private static String OUTPUT_FILE_NAME = "PdbCurrentMetaData.parquet";
 	private static String OUTPUT_FORMAT = "parquet";
 	
+//	private static final String CURRENT_URL = "http://release.rcsb.org/pdb/rest/customReport.csv?pdbids=*&customReportColumns=pmc,pubmedId,depositionDate&service=wsfile&format=csv&primaryOnly=1";
 	private static final String CURRENT_URL = "http://www.rcsb.org/pdb/rest/customReport.csv?pdbids=*&customReportColumns=pmc,pubmedId,depositionDate&service=wsfile&format=csv&primaryOnly=1";
 	private static final String UNRELEASED_URL = "http://www.rcsb.org/pdb/rest/getUnreleased";
 
@@ -48,6 +49,7 @@ public class PdbCurrentMetadataToParquet {
 		// setup Spark and Spark SQL
 		JavaSparkContext sc = SparkUtils.getJavaSparkContext();
 		SQLContext sqlContext = SparkUtils.getSqlContext(sc);
+
 		// register custom class with Kryo serializer for best performance
 		sc.getConf().registerKryoClasses(new Class[]{PdbMetaData.class});
 

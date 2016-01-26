@@ -109,7 +109,7 @@ public class PdbDataMentionMiner
 		}
  
 		String inputDirectory = args[0];
-		List<String> inputFiles = PmcTarBallReader.getTarBallFileNames(inputDirectory);	
+		List<String> inputFiles = PmcTarBallReader.getTarBallFileNames(inputDirectory);
 		setPmcFileList(inputFiles);
 		
 		String outputDirectory = args[1];

@@ -1,6 +1,7 @@
 package org.biocaddie.datamention.mine;
 
 import org.apache.spark.api.java.JavaSparkContext;
+import org.apache.spark.sql.Column;
 import org.apache.spark.sql.DataFrame;
 import org.apache.spark.sql.SQLContext;
 import org.apache.spark.sql.SaveMode;
@@ -99,32 +100,40 @@ public class PdbDataMentionTrainingSetGenerator
 		String positivesIFileName = workingDirectory + "/PositivesI.parquet";
 		positivesI.coalesce(threads).write().mode(SaveMode.Overwrite).parquet(positivesIFileName);
 		System.out.println("positiveI: " + positivesI.count());
+		positivesI.printSchema();
+		positivesI.show();
+		positivesI.unpersist();
+		
 		
 		DataFrame positivesII = sqlContext.sql(
 				"SELECT m.pdb_id, m.match_type, m.deposition_year, m.pmc_id, m.pm_id, m.publication_year, m.primary_citation, m.sentence, m.blinded_sentence, 1.0 as label FROM merged m WHERE m.match_type!='PDB_NONE' AND m.primary_citation = 0 AND m.publication_year>=m.deposition_year").cache();
-
 		System.out.println("positiveII: " + positivesII.count());
 		String positivesIIFileName = workingDirectory + "/PositivesII.parquet";
 		positivesII.coalesce(threads).write().mode(SaveMode.Overwrite).parquet(positivesIIFileName);
+		positivesII.unpersist();
 
 		DataFrame negativesI = sqlContext.sql(
 				"SELECT m.pdb_id, m.match_type, m.deposition_year, m.pmc_id, m.pm_id, m.publication_year, m.primary_citation, m.sentence, m.blinded_sentence, 0.0 as label FROM merged m WHERE m.entry_type IS NOT null AND m.publication_year<m.deposition_year").cache();
 		String negativesIFileName = workingDirectory + "/NegativesI.parquet";
 		negativesI.coalesce(threads).write().mode(SaveMode.Overwrite).parquet(negativesIFileName);		
 		System.out.println("negativesI: " + negativesI.count());
+		negativesI.unpersist();
 
 		DataFrame negativesII = sqlContext.sql(
 				"SELECT m.pdb_id, m.match_type, m.deposition_year, m.pmc_id, m.pm_id, m.publication_year, m.primary_citation, m.sentence, m.blinded_sentence, 0.0 as label FROM merged m WHERE m.entry_type IS null").cache();
 		String negativesIIFileName = workingDirectory + "/NegativesII.parquet";
-		negativesII.coalesce(threads).write().mode(SaveMode.Overwrite).parquet(negativesIIFileName);			
+//		negativesII.coalesce(threads).write().mode(SaveMode.Overwrite).parquet(negativesIIFileName);
+		negativesII.write().mode(SaveMode.Overwrite).parquet(negativesIIFileName);	
 		System.out.println("negativeII: " + negativesII.count());
+		negativesII.unpersist();
 
 		DataFrame unassignedMentions = sqlContext.sql(
 				"SELECT m.pdb_id, m.match_type, m.deposition_year, m.pmc_id,m.pm_id, m.publication_year, m.primary_citation, m.sentence, m.blinded_sentence, 0.0 as label FROM merged m WHERE m.entry_type IS NOT NULL AND m.match_type='PDB_NONE' AND m.publication_year>=m.deposition_year AND m.primary_citation=false").cache();
-
 		System.out.println("Unassigned Data Mentions: " + unassignedMentions.schema());
 		String unassignedMentionsFileName = workingDirectory + "/Unassigned.parquet";
-		unassignedMentions.coalesce(threads).write().mode(SaveMode.Overwrite).parquet(unassignedMentionsFileName);	
+//		unassignedMentions.coalesce(threads).write().mode(SaveMode.Overwrite).parquet(unassignedMentionsFileName);	
+		unassignedMentions.write().mode(SaveMode.Overwrite).parquet(unassignedMentionsFileName);	
+		unassignedMentions.unpersist();
 
 		System.out.println("time: " + (System.nanoTime()-start)/1E9 + " s");
 

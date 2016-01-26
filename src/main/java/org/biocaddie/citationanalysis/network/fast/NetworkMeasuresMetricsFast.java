@@ -1,34 +1,25 @@
-package biocaddie.citationanalysis.network.fast;
+package org.biocaddie.citationanalysis.network.fast;
 
 import it.unimi.dsi.fastutil.ints.Int2DoubleOpenHashMap;
-import it.unimi.dsi.fastutil.objects.ObjectCollection;
 
-import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Date;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.Queue;
-import java.util.TreeMap;
 import java.util.Vector;
-import java.util.Map.Entry;
-import java.util.regex.Pattern;
 
 /**
  * This class reads a network in Pajek format, and generates the following metrics for each node and write in an output file:
@@ -217,70 +208,70 @@ public class NetworkMeasuresMetricsFast {
 	 * This implementation computes betweennessCentrality in an unweighted manner.
 	 * @param network
 	 */
-	private static void betweennessCentrality(NetworkFast network) {
-	    System.out.println ("Starting BetweennessCentrality computation... " + dateFormat.format(new Date()));
-
-	    //this map keeps the list of nodes that are changed during an iteration, at the end of each iteration, we only initialize them, not the whole 2 million dataset 
-		Map<Integer, NodeFast> changed = new HashMap<Integer, NodeFast>();
-	    for (Iterator<Map.Entry<Integer, NodeFast>> iter = network.nodeMap.entrySet().iterator(); iter.hasNext(); ) {
-	    	NodeFast s = iter.next().getValue();
-	    	//initialization
-	    	Deque<NodeFast> stack = new ArrayDeque<NodeFast>();
-	    	Queue<NodeFast> queue = new LinkedList<NodeFast>();	    	
-	    	
-			s.numSPs = 1.0;
-			s.distance = 0.0;	    	
-	    	queue.add(s);
-	    	changed.put(s.id, s);
-	    	
-	    	while (!queue.isEmpty()) {
-	    		NodeFast v = queue.remove();
-                stack.push(v);
-                
-			    for (Iterator<Map.Entry<Integer, Double>> iter2 = v.outLinks.entrySet().iterator(); iter2.hasNext(); ){			    	
-			    	NodeFast w = network.nodeMap.get(iter2.next().getKey());
-			    	//path discovery: w found for the first time
-			    	if (w.distance < 0.0){
-			    		w.distance = v.distance + 1.0;			    		
-			    		queue.add(w);
-			    		changed.put(w.id, w);
-			    	}
-			    	//path counting: edge(v,w) on a shortest path?
-			    	if (w.distance == v.distance+1.0){
-			    		w.numSPs += v.numSPs;	
-			    		w.predecessors.add(v);
-			    		changed.put(w.id, w);			    		
-			    	}			    	
-			    }                
-	    	}
-	    	
-	    	//accumulation - back-propagation of dependencies
-		    while (!stack.isEmpty()) {
-	    		NodeFast w = stack.pop();
-	    		
-	    		for (Iterator<NodeFast> iter3 = w.predecessors.iterator(); iter3.hasNext();) {
-                    NodeFast v = iter3.next();
-                    v.dependency += (v.numSPs / w.numSPs) * (1.0 + w.dependency);     
-                    changed.put(v.id, v);
-	    		}
-	    		
-                if (!w.equals(s)) {                	
-                	w.betweennessCentrality += w.dependency;                	                	 
-                }
-	    	}	
-		    
-	    	for (Iterator<Map.Entry<Integer, NodeFast>> iterInit = changed.entrySet().iterator(); iterInit.hasNext(); ){
-	    		NodeFast nodeInit = iterInit.next().getValue();	    		
-	    		nodeInit.dependency = 0.0;
-	    		nodeInit.numSPs = 0.0;
-	    		nodeInit.distance = -1.0;
-	    		nodeInit.predecessors = new ArrayList<NodeFast>();	    		
-	    	}	    	
-	    	changed.clear();
-	    }	    
-	    System.out.println ("BetweennessCentrality computation done... " + dateFormat.format(new Date()));
-	}
-	
+//	private static void betweennessCentrality(NetworkFast network) {
+//	    System.out.println ("Starting BetweennessCentrality computation... " + dateFormat.format(new Date()));
+//
+//	    //this map keeps the list of nodes that are changed during an iteration, at the end of each iteration, we only initialize them, not the whole 2 million dataset 
+//		Map<Integer, NodeFast> changed = new HashMap<Integer, NodeFast>();
+//	    for (Iterator<Map.Entry<Integer, NodeFast>> iter = network.nodeMap.entrySet().iterator(); iter.hasNext(); ) {
+//	    	NodeFast s = iter.next().getValue();
+//	    	//initialization
+//	    	Deque<NodeFast> stack = new ArrayDeque<NodeFast>();
+//	    	Queue<NodeFast> queue = new LinkedList<NodeFast>();	    	
+//	    	
+//			s.numSPs = 1.0;
+//			s.distance = 0.0;	    	
+//	    	queue.add(s);
+//	    	changed.put(s.id, s);
+//	    	
+//	    	while (!queue.isEmpty()) {
+//	    		NodeFast v = queue.remove();
+//                stack.push(v);
+//                
+//			    for (Iterator<Map.Entry<Integer, Double>> iter2 = v.outLinks.entrySet().iterator(); iter2.hasNext(); ){			    	
+//			    	NodeFast w = network.nodeMap.get(iter2.next().getKey());
+//			    	//path discovery: w found for the first time
+//			    	if (w.distance < 0.0){
+//			    		w.distance = v.distance + 1.0;			    		
+//			    		queue.add(w);
+//			    		changed.put(w.id, w);
+//			    	}
+//			    	//path counting: edge(v,w) on a shortest path?
+//			    	if (w.distance == v.distance+1.0){
+//			    		w.numSPs += v.numSPs;	
+//			    		w.predecessors.add(v);
+//			    		changed.put(w.id, w);			    		
+//			    	}			    	
+//			    }                
+//	    	}
+//	    	
+//	    	//accumulation - back-propagation of dependencies
+//		    while (!stack.isEmpty()) {
+//	    		NodeFast w = stack.pop();
+//	    		
+//	    		for (Iterator<NodeFast> iter3 = w.predecessors.iterator(); iter3.hasNext();) {
+//                    NodeFast v = iter3.next();
+//                    v.dependency += (v.numSPs / w.numSPs) * (1.0 + w.dependency);     
+//                    changed.put(v.id, v);
+//	    		}
+//	    		
+//                if (!w.equals(s)) {                	
+//                	w.betweennessCentrality += w.dependency;                	                	 
+//                }
+//	    	}	
+//		    
+//	    	for (Iterator<Map.Entry<Integer, NodeFast>> iterInit = changed.entrySet().iterator(); iterInit.hasNext(); ){
+//	    		NodeFast nodeInit = iterInit.next().getValue();	    		
+//	    		nodeInit.dependency = 0.0;
+//	    		nodeInit.numSPs = 0.0;
+//	    		nodeInit.distance = -1.0;
+//	    		nodeInit.predecessors = new ArrayList<NodeFast>();	    		
+//	    	}	    	
+//	    	changed.clear();
+//	    }	    
+//	    System.out.println ("BetweennessCentrality computation done... " + dateFormat.format(new Date()));
+//	}
+//	
 	/**
 	 * This method writes the network measures/metrics of each node to an output file.
 	 * We use double pipe "||" as a delimiter, because single pipe "|" exist in some of the titles.
@@ -296,7 +287,8 @@ public class NetworkMeasuresMetricsFast {
 
 	    for (NodeFast node: network.nodeMap.values()) {	
 //	    	Node node = iter.next().getValue();	    	
-	    	out.write(node.id + sep + node.inLinks.size() + sep + node.outLinks.size() + sep + node.size + sep + node.betweennessCentrality + sep+ node.name);   
+//	    	out.write(node.id + sep + node.inLinks.size() + sep + node.outLinks.size() + sep + node.size + sep + node.betweennessCentrality + sep+ node.name);  
+	    	out.write(node.id + sep + node.inLinks.size() + sep + node.outLinks.size() + sep + node.size + sep+ node.name); 
 	    	out.newLine();
 	    }                        
         out.flush();       
