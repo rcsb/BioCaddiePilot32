@@ -8,6 +8,7 @@ import java.net.URL;
 import java.net.URLConnection;
 import java.sql.Date;
 import java.text.DateFormat;
+import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.List;
@@ -34,8 +35,10 @@ public class PdbObsoleteMetadataToParquet {
 	private static final String OUTPUT_FILE_NAME = "PdbObsoleteMetaData.parquet";
 	private static String OUTPUT_FORMAT = "parquet";
 	
-	private static final String PDB_HTTP = "http://ftp.wwpdb.org/";
-	private static final String SERVER = "ftp.pdbj.org";
+//	private static final String PDB_HTTP = "http://ftp.wwpdb.org/";
+	private static final String PDB_HTTP = "http://cftp.rcsb.org/";
+//	private static final String SERVER = "ftp.pdbj.org";
+	private static final String SERVER = "cftp.rcsb.org";
 	private static final String USER_NAME = "anonymous";
 	private static final String PASSWORD = "";
 	
@@ -51,8 +54,13 @@ public class PdbObsoleteMetadataToParquet {
 		String outputDirectory = args[0];
 		String outputFileName = outputDirectory + "/" + OUTPUT_FILE_NAME;
 		
+		long start = System.nanoTime();
 		PdbObsoleteMetadataToParquet downLoader = new PdbObsoleteMetadataToParquet();
 		downLoader.writeMetadata(outputFileName, OUTPUT_FORMAT);
+		
+		long end = System.nanoTime();
+		
+		System.out.println("Total downlaod time: " + (end-start)/1E9 + "sec.");
 	}
 	
 	/**
@@ -104,7 +112,12 @@ public class PdbObsoleteMetadataToParquet {
 		
 		List<String> obsoleteNames = FtpFileLister.getFileNames(SERVER, USER_NAME, PASSWORD, OBSOLETE_MODEL_URL);
 		for (String fileName: obsoleteNames) {
-			info.add(getModelInfo(PDB_HTTP + fileName, PdbMetaData.OBSOLETE_MODEL));
+			try {
+				info.add(getModelInfo(PDB_HTTP + fileName, PdbMetaData.OBSOLETE_MODEL));
+			} catch (IOException | ParseException e) {
+				System.err.println("Error reading: " + fileName + ". Skipping this entry.");
+				continue;
+			}
 		}
 		
 		return info;
@@ -119,7 +132,12 @@ public class PdbObsoleteMetadataToParquet {
 		
 		List<String> currentNames = FtpFileLister.getFileNames(SERVER, USER_NAME, PASSWORD, CURRENT_MODEL_URL);
 		for (String fileName: currentNames) {
-			info.add(getModelInfo(PDB_HTTP + fileName, PdbMetaData.CURRENT_MODEL));
+			try {
+				info.add(getModelInfo(PDB_HTTP + fileName, PdbMetaData.CURRENT_MODEL));
+			} catch (IOException | ParseException e) {
+				System.err.println("Error reading: " + fileName + ". Skipping this entry.");
+				continue;
+			}
 		}
 		
 		return info;
@@ -134,7 +152,12 @@ public class PdbObsoleteMetadataToParquet {
 		
 		List<String> currentNames = FtpFileLister.getFileNames(SERVER, USER_NAME, PASSWORD, OBSOLETE_ENTRY_URL);
 		for (String fileName: currentNames) {
-			info.add(getModelInfo(PDB_HTTP + fileName, PdbMetaData.OBSOLETE));
+			try {
+				info.add(getModelInfo(PDB_HTTP + fileName, PdbMetaData.OBSOLETE));
+			} catch (IOException | ParseException e) {
+				System.err.println("Error reading: " + fileName + ". Skipping this entry.");
+				continue;
+			}
 		}
 		
 		return info;
@@ -145,27 +168,27 @@ public class PdbObsoleteMetadataToParquet {
 	 * @param url url of PDB file
 	 * @param entryType the type of PDB structure or model
 	 * @return
+	 * @throws IOException 
+	 * @throws ParseException 
 	 */
-	private static PdbMetaData getModelInfo(String url, int entryType) {
+	private static PdbMetaData getModelInfo(String url, int entryType) throws IOException, ParseException {
 		// read header line of PDB file
 		String header = getHeaderLine(url);
+		System.out.println("Downloading: " + url);
 		System.out.println(header);
-		
+
 		PdbMetaData info = new PdbMetaData();
 		info.setPdbId(header.substring(62,66).toUpperCase());
 		info.setEntryType(entryType);
-		
-		// parse deposition date/year
-		try {
-			String yyyymmdd = outFormat1.format(inFormat.parse(header.substring(50,59)));
-			Date depositionDate = Date.valueOf(yyyymmdd); // Note, this is a java.sql.date!
-			info.setDepositionDate(depositionDate);
 
-			String yyyy = outFormat2.format(inFormat.parse(header.substring(50,59)));
-			info.setDepositionYear(Integer.parseInt(yyyy));
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
+		// parse deposition date/year
+
+		String yyyymmdd = outFormat1.format(inFormat.parse(header.substring(50,59)));
+		Date depositionDate = Date.valueOf(yyyymmdd); // Note, this is a java.sql.date!
+		info.setDepositionDate(depositionDate);
+
+		String yyyy = outFormat2.format(inFormat.parse(header.substring(50,59)));
+		info.setDepositionYear(Integer.parseInt(yyyy));
 
 		return info;
 	}
@@ -174,32 +197,20 @@ public class PdbObsoleteMetadataToParquet {
 	 * Returns the header line of a PDB file at the specified URL.
 	 * @param url
 	 * @return
+	 * @throws IOException 
 	 */
-	private static String getHeaderLine(String url) {
-		String header = "";
-		try {
-			URL u = new URL(url);
-			URLConnection connection = u.openConnection();
-			connection.setConnectTimeout(60000);
-			InputStream stream = connection.getInputStream();
+	private static String getHeaderLine(String url) throws IOException {
+		
+		URL u = new URL(url);
+		URLConnection connection = u.openConnection();
+		connection.setConnectTimeout(60000);
+		InputStream stream = connection.getInputStream();
 
-			if (stream != null) {
-				try {
-					BufferedReader reader = new BufferedReader(new InputStreamReader(new GZIPInputStream(stream)));
-					String line = reader.readLine();
-					if (line != null) {
-						reader.close();
-						return line;				
-					}
-					reader.close();
-				} catch (IOException e) {
-					e.printStackTrace();
-				} 
-			}
+		BufferedReader reader = new BufferedReader(new InputStreamReader(new GZIPInputStream(stream)));
+		String header = reader.readLine();
+		reader.close();
+		stream.close();
 
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
 		return header;
 	}
 }

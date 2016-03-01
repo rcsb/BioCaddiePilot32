@@ -100,13 +100,16 @@ public class FtpFileLister {
 					System.out.print("\t");
 				}
 				if (aFile.isDirectory()) {
-					System.out.println("[" + currentFileName + "]");
+					System.out.println("Scanning inside [" + currentFileName + "]");
 					fileNames.addAll(listDirectory(ftpClient, dirToList, currentFileName, level + 1));
 				} else {
+					System.out.println("File -> "  + currentFileName);
 					fileNames.add(dirToList + "/" + currentFileName);
-					System.out.println(currentFileName);
 				}
 			}
+		} 
+		else {
+			System.out.println("-NoFiles");
 		}
 		return fileNames;
 	}
